@@ -3,16 +3,35 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {DOCUMENT, isPlatformServer, ɵgetDOM as getDOM} from '@angular/common';
-import {APP_ID, CSP_NONCE, Inject, Injectable, InjectionToken, NgZone, OnDestroy, PLATFORM_ID, Renderer2, RendererFactory2, RendererStyleFlags2, RendererType2, ViewEncapsulation, ɵRuntimeError as RuntimeError} from '@angular/core';
+import {
+  APP_ID,
+  CSP_NONCE,
+  Inject,
+  Injectable,
+  InjectionToken,
+  NgZone,
+  OnDestroy,
+  PLATFORM_ID,
+  Renderer2,
+  RendererFactory2,
+  RendererStyleFlags2,
+  RendererType2,
+  ViewEncapsulation,
+  ɵRuntimeError as RuntimeError,
+  type ListenerOptions,
+  ɵTracingService as TracingService,
+  ɵTracingSnapshot as TracingSnapshot,
+  Optional,
+} from '@angular/core';
 
 import {RuntimeErrorCode} from '../errors';
 
 import {EventManager} from './events/event_manager';
-import {SharedStylesHost} from './shared_styles_host';
+import {createLinkElement, SharedStylesHost} from './shared_styles_host';
 
 export const NAMESPACE_URIS: {[ns: string]: string} = {
   'svg': 'http://www.w3.org/2000/svg',
@@ -20,7 +39,7 @@ export const NAMESPACE_URIS: {[ns: string]: string} = {
   'xlink': 'http://www.w3.org/1999/xlink',
   'xml': 'http://www.w3.org/XML/1998/namespace',
   'xmlns': 'http://www.w3.org/2000/xmlns/',
-  'math': 'http://www.w3.org/1998/MathML/',
+  'math': 'http://www.w3.org/1998/Math/MathML',
 };
 
 const COMPONENT_REGEX = /%COMP%/g;
@@ -32,20 +51,22 @@ export const CONTENT_ATTR = `_ngcontent-${COMPONENT_VARIABLE}`;
 /**
  * The default value for the `REMOVE_STYLES_ON_COMPONENT_DESTROY` DI token.
  */
-const REMOVE_STYLES_ON_COMPONENT_DESTROY_DEFAULT = false;
+const REMOVE_STYLES_ON_COMPONENT_DESTROY_DEFAULT = true;
 
 /**
- * A [DI token](guide/glossary#di-token "DI token definition") that indicates whether styles
+ * A DI token that indicates whether styles
  * of destroyed components should be removed from DOM.
  *
- * By default, the value is set to `false`. This will be changed in the next major version.
+ * By default, the value is set to `true`.
  * @publicApi
  */
-export const REMOVE_STYLES_ON_COMPONENT_DESTROY =
-    new InjectionToken<boolean>('RemoveStylesOnCompDestory', {
-      providedIn: 'root',
-      factory: () => REMOVE_STYLES_ON_COMPONENT_DESTROY_DEFAULT,
-    });
+export const REMOVE_STYLES_ON_COMPONENT_DESTROY = new InjectionToken<boolean>(
+  ngDevMode ? 'RemoveStylesOnCompDestroy' : '',
+  {
+    providedIn: 'root',
+    factory: () => REMOVE_STYLES_ON_COMPONENT_DESTROY_DEFAULT,
+  },
+);
 
 export function shimContentAttribute(componentShortId: string): string {
   return CONTENT_ATTR.replace(COMPONENT_REGEX, componentShortId);
@@ -56,32 +77,42 @@ export function shimHostAttribute(componentShortId: string): string {
 }
 
 export function shimStylesContent(compId: string, styles: string[]): string[] {
-  return styles.map(s => s.replace(COMPONENT_REGEX, compId));
+  return styles.map((s) => s.replace(COMPONENT_REGEX, compId));
 }
 
 @Injectable()
 export class DomRendererFactory2 implements RendererFactory2, OnDestroy {
-  private readonly rendererByCompId =
-      new Map<string, EmulatedEncapsulationDomRenderer2|NoneEncapsulationDomRenderer>();
+  private readonly rendererByCompId = new Map<
+    string,
+    EmulatedEncapsulationDomRenderer2 | NoneEncapsulationDomRenderer
+  >();
   private readonly defaultRenderer: Renderer2;
   private readonly platformIsServer: boolean;
 
   constructor(
-      private readonly eventManager: EventManager,
-      private readonly sharedStylesHost: SharedStylesHost,
-      @Inject(APP_ID) private readonly appId: string,
-      @Inject(REMOVE_STYLES_ON_COMPONENT_DESTROY) private removeStylesOnCompDestory: boolean,
-      @Inject(DOCUMENT) private readonly doc: Document,
-      @Inject(PLATFORM_ID) readonly platformId: Object,
-      readonly ngZone: NgZone,
-      @Inject(CSP_NONCE) private readonly nonce: string|null = null,
+    private readonly eventManager: EventManager,
+    private readonly sharedStylesHost: SharedStylesHost,
+    @Inject(APP_ID) private readonly appId: string,
+    @Inject(REMOVE_STYLES_ON_COMPONENT_DESTROY) private removeStylesOnCompDestroy: boolean,
+    @Inject(DOCUMENT) private readonly doc: Document,
+    @Inject(PLATFORM_ID) readonly platformId: Object,
+    readonly ngZone: NgZone,
+    @Inject(CSP_NONCE) private readonly nonce: string | null = null,
+    @Inject(TracingService)
+    @Optional()
+    private readonly tracingService: TracingService<TracingSnapshot> | null = null,
   ) {
     this.platformIsServer = isPlatformServer(platformId);
-    this.defaultRenderer =
-        new DefaultDomRenderer2(eventManager, doc, ngZone, this.platformIsServer);
+    this.defaultRenderer = new DefaultDomRenderer2(
+      eventManager,
+      doc,
+      ngZone,
+      this.platformIsServer,
+      this.tracingService,
+    );
   }
 
-  createRenderer(element: any, type: RendererType2|null): Renderer2 {
+  createRenderer(element: any, type: RendererType2 | null): Renderer2 {
     if (!element || !type) {
       return this.defaultRenderer;
     }
@@ -112,27 +143,49 @@ export class DomRendererFactory2 implements RendererFactory2, OnDestroy {
       const ngZone = this.ngZone;
       const eventManager = this.eventManager;
       const sharedStylesHost = this.sharedStylesHost;
-      const removeStylesOnCompDestory = this.removeStylesOnCompDestory;
+      const removeStylesOnCompDestroy = this.removeStylesOnCompDestroy;
       const platformIsServer = this.platformIsServer;
 
       switch (type.encapsulation) {
         case ViewEncapsulation.Emulated:
           renderer = new EmulatedEncapsulationDomRenderer2(
-              eventManager, sharedStylesHost, type, this.appId, removeStylesOnCompDestory, doc,
-              ngZone, platformIsServer);
+            eventManager,
+            sharedStylesHost,
+            type,
+            this.appId,
+            removeStylesOnCompDestroy,
+            doc,
+            ngZone,
+            platformIsServer,
+            this.tracingService,
+          );
           break;
         case ViewEncapsulation.ShadowDom:
           return new ShadowDomRenderer(
-              eventManager, sharedStylesHost, element, type, doc, ngZone, this.nonce,
-              platformIsServer);
+            eventManager,
+            sharedStylesHost,
+            element,
+            type,
+            doc,
+            ngZone,
+            this.nonce,
+            platformIsServer,
+            this.tracingService,
+          );
         default:
           renderer = new NoneEncapsulationDomRenderer(
-              eventManager, sharedStylesHost, type, removeStylesOnCompDestory, doc, ngZone,
-              platformIsServer);
+            eventManager,
+            sharedStylesHost,
+            type,
+            removeStylesOnCompDestroy,
+            doc,
+            ngZone,
+            platformIsServer,
+            this.tracingService,
+          );
           break;
       }
 
-      renderer.onDestroy = () => rendererByCompId.delete(type.id);
       rendererByCompId.set(type.id, renderer);
     }
 
@@ -142,14 +195,32 @@ export class DomRendererFactory2 implements RendererFactory2, OnDestroy {
   ngOnDestroy() {
     this.rendererByCompId.clear();
   }
+
+  /**
+   * Used during HMR to clear any cached data about a component.
+   * @param componentId ID of the component that is being replaced.
+   */
+  protected componentReplaced(componentId: string) {
+    this.rendererByCompId.delete(componentId);
+  }
 }
 
 class DefaultDomRenderer2 implements Renderer2 {
   data: {[key: string]: any} = Object.create(null);
 
+  /**
+   * By default this renderer throws when encountering synthetic properties
+   * This can be disabled for example by the AsyncAnimationRendererFactory
+   */
+  throwOnSyntheticProps = true;
+
   constructor(
-      private readonly eventManager: EventManager, private readonly doc: Document,
-      private readonly ngZone: NgZone, private readonly platformIsServer: boolean) {}
+    private readonly eventManager: EventManager,
+    private readonly doc: Document,
+    private readonly ngZone: NgZone,
+    private readonly platformIsServer: boolean,
+    private readonly tracingService: TracingService<TracingSnapshot> | null,
+  ) {}
 
   destroy(): void {}
 
@@ -192,20 +263,19 @@ class DefaultDomRenderer2 implements Renderer2 {
     }
   }
 
-  removeChild(parent: any, oldChild: any): void {
-    if (parent) {
-      parent.removeChild(oldChild);
-    }
+  removeChild(_parent: any, oldChild: any): void {
+    oldChild.remove();
   }
 
-  selectRootElement(selectorOrNode: string|any, preserveContent?: boolean): any {
-    let el: any = typeof selectorOrNode === 'string' ? this.doc.querySelector(selectorOrNode) :
-                                                       selectorOrNode;
+  selectRootElement(selectorOrNode: string | any, preserveContent?: boolean): any {
+    let el: any =
+      typeof selectorOrNode === 'string' ? this.doc.querySelector(selectorOrNode) : selectorOrNode;
     if (!el) {
       throw new RuntimeError(
-          RuntimeErrorCode.ROOT_NODE_NOT_FOUND,
-          (typeof ngDevMode === 'undefined' || ngDevMode) &&
-              `The selector "${selectorOrNode}" did not match any elements`);
+        RuntimeErrorCode.ROOT_NODE_NOT_FOUND,
+        (typeof ngDevMode === 'undefined' || ngDevMode) &&
+          `The selector "${selectorOrNode}" did not match any elements`,
+      );
     }
     if (!preserveContent) {
       el.textContent = '';
@@ -274,7 +344,13 @@ class DefaultDomRenderer2 implements Renderer2 {
   }
 
   setProperty(el: any, name: string, value: any): void {
-    (typeof ngDevMode === 'undefined' || ngDevMode) && checkNoSyntheticProp(name, 'property');
+    if (el == null) {
+      return;
+    }
+
+    (typeof ngDevMode === 'undefined' || ngDevMode) &&
+      this.throwOnSyntheticProps &&
+      checkNoSyntheticProp(name, 'property');
     el[name] = value;
   }
 
@@ -282,9 +358,15 @@ class DefaultDomRenderer2 implements Renderer2 {
     node.nodeValue = value;
   }
 
-  listen(target: 'window'|'document'|'body'|any, event: string, callback: (event: any) => boolean):
-      () => void {
-    (typeof ngDevMode === 'undefined' || ngDevMode) && checkNoSyntheticProp(event, 'listener');
+  listen(
+    target: 'window' | 'document' | 'body' | any,
+    event: string,
+    callback: (event: any) => boolean,
+    options?: ListenerOptions,
+  ): () => void {
+    (typeof ngDevMode === 'undefined' || ngDevMode) &&
+      this.throwOnSyntheticProps &&
+      checkNoSyntheticProp(event, 'listener');
     if (typeof target === 'string') {
       target = getDOM().getGlobalEventTarget(this.doc, target);
       if (!target) {
@@ -292,8 +374,18 @@ class DefaultDomRenderer2 implements Renderer2 {
       }
     }
 
+    let wrappedCallback = this.decoratePreventDefault(callback);
+
+    if (this.tracingService !== null && this.tracingService.wrapEventListener) {
+      wrappedCallback = this.tracingService.wrapEventListener(target, event, wrappedCallback);
+    }
+
     return this.eventManager.addEventListener(
-               target, event, this.decoratePreventDefault(callback)) as VoidFunction;
+      target,
+      event,
+      wrappedCallback,
+      options,
+    ) as VoidFunction;
   }
 
   private decoratePreventDefault(eventHandler: Function): Function {
@@ -313,9 +405,9 @@ class DefaultDomRenderer2 implements Renderer2 {
 
       // Run the event handler inside the ngZone because event handlers are not patched
       // by Zone on the server. This is required only for tests.
-      const allowDefaultBehavior = this.platformIsServer ?
-          this.ngZone.runGuarded(() => eventHandler(event)) :
-          eventHandler(event);
+      const allowDefaultBehavior = this.platformIsServer
+        ? this.ngZone.runGuarded(() => eventHandler(event))
+        : eventHandler(event);
       if (allowDefaultBehavior === false) {
         event.preventDefault();
       }
@@ -329,14 +421,13 @@ const AT_CHARCODE = (() => '@'.charCodeAt(0))();
 function checkNoSyntheticProp(name: string, nameKind: string) {
   if (name.charCodeAt(0) === AT_CHARCODE) {
     throw new RuntimeError(
-        RuntimeErrorCode.UNEXPECTED_SYNTHETIC_PROPERTY,
-        `Unexpected synthetic ${nameKind} ${name} found. Please make sure that:
-  - Either \`BrowserAnimationsModule\` or \`NoopAnimationsModule\` are imported in your application.
-  - There is corresponding configuration for the animation named \`${
-            name}\` defined in the \`animations\` field of the \`@Component\` decorator (see https://angular.io/api/core/Component#animations).`);
+      RuntimeErrorCode.UNEXPECTED_SYNTHETIC_PROPERTY,
+      `Unexpected synthetic ${nameKind} ${name} found. Please make sure that:
+  - Make sure \`provideAnimationsAsync()\`, \`provideAnimations()\` or \`provideNoopAnimations()\` call was added to a list of providers used to bootstrap an application.
+  - There is a corresponding animation configuration named \`${name}\` defined in the \`animations\` field of the \`@Component\` decorator (see https://angular.dev/api/core/Component#animations).`,
+    );
   }
 }
-
 
 function isTemplateNode(node: any): node is HTMLTemplateElement {
   return node.tagName === 'TEMPLATE' && node.content !== undefined;
@@ -346,16 +437,17 @@ class ShadowDomRenderer extends DefaultDomRenderer2 {
   private shadowRoot: any;
 
   constructor(
-      eventManager: EventManager,
-      private sharedStylesHost: SharedStylesHost,
-      private hostEl: any,
-      component: RendererType2,
-      doc: Document,
-      ngZone: NgZone,
-      nonce: string|null,
-      platformIsServer: boolean,
+    eventManager: EventManager,
+    private sharedStylesHost: SharedStylesHost,
+    private hostEl: any,
+    component: RendererType2,
+    doc: Document,
+    ngZone: NgZone,
+    nonce: string | null,
+    platformIsServer: boolean,
+    tracingService: TracingService<TracingSnapshot> | null,
   ) {
-    super(eventManager, doc, ngZone, platformIsServer);
+    super(eventManager, doc, ngZone, platformIsServer, tracingService);
     this.shadowRoot = (hostEl as any).attachShadow({mode: 'open'});
 
     this.sharedStylesHost.addHost(this.shadowRoot);
@@ -371,6 +463,23 @@ class ShadowDomRenderer extends DefaultDomRenderer2 {
       styleEl.textContent = style;
       this.shadowRoot.appendChild(styleEl);
     }
+
+    // Apply any external component styles to the shadow root for the component's element.
+    // The ShadowDOM renderer uses an alternative execution path for component styles that
+    // does not use the SharedStylesHost that other encapsulation modes leverage. Much like
+    // the manual addition of embedded styles directly above, any external stylesheets
+    // must be manually added here to ensure ShadowDOM components are correctly styled.
+    // TODO: Consider reworking the DOM Renderers to consolidate style handling.
+    const styleUrls = component.getExternalStyles?.();
+    if (styleUrls) {
+      for (const styleUrl of styleUrls) {
+        const linkEl = createLinkElement(styleUrl, doc);
+        if (nonce) {
+          linkEl.setAttribute('nonce', nonce);
+        }
+        this.shadowRoot.appendChild(linkEl);
+      }
+    }
   }
 
   private nodeOrShadowRoot(node: any): any {
@@ -383,8 +492,8 @@ class ShadowDomRenderer extends DefaultDomRenderer2 {
   override insertBefore(parent: any, newChild: any, refChild: any): void {
     return super.insertBefore(this.nodeOrShadowRoot(parent), newChild, refChild);
   }
-  override removeChild(parent: any, oldChild: any): void {
-    return super.removeChild(this.nodeOrShadowRoot(parent), oldChild);
+  override removeChild(_parent: any, oldChild: any): void {
+    return super.removeChild(null, oldChild);
   }
   override parentNode(node: any): any {
     return this.nodeOrShadowRoot(super.parentNode(this.nodeOrShadowRoot(node)));
@@ -397,38 +506,34 @@ class ShadowDomRenderer extends DefaultDomRenderer2 {
 
 class NoneEncapsulationDomRenderer extends DefaultDomRenderer2 {
   private readonly styles: string[];
-  private rendererUsageCount = 0;
-  onDestroy: VoidFunction|undefined;
+  private readonly styleUrls?: string[];
 
   constructor(
-      eventManager: EventManager,
-      private readonly sharedStylesHost: SharedStylesHost,
-      component: RendererType2,
-      private removeStylesOnCompDestory: boolean,
-      doc: Document,
-      ngZone: NgZone,
-      platformIsServer: boolean,
-      compId?: string,
+    eventManager: EventManager,
+    private readonly sharedStylesHost: SharedStylesHost,
+    component: RendererType2,
+    private removeStylesOnCompDestroy: boolean,
+    doc: Document,
+    ngZone: NgZone,
+    platformIsServer: boolean,
+    tracingService: TracingService<TracingSnapshot> | null,
+    compId?: string,
   ) {
-    super(eventManager, doc, ngZone, platformIsServer);
+    super(eventManager, doc, ngZone, platformIsServer, tracingService);
     this.styles = compId ? shimStylesContent(compId, component.styles) : component.styles;
+    this.styleUrls = component.getExternalStyles?.(compId);
   }
 
   applyStyles(): void {
-    this.sharedStylesHost.addStyles(this.styles);
-    this.rendererUsageCount++;
+    this.sharedStylesHost.addStyles(this.styles, this.styleUrls);
   }
 
   override destroy(): void {
-    if (!this.removeStylesOnCompDestory) {
+    if (!this.removeStylesOnCompDestroy) {
       return;
     }
 
-    this.sharedStylesHost.removeStyles(this.styles);
-    this.rendererUsageCount--;
-    if (this.rendererUsageCount === 0) {
-      this.onDestroy?.();
-    }
+    this.sharedStylesHost.removeStyles(this.styles, this.styleUrls);
   }
 }
 
@@ -437,13 +542,28 @@ class EmulatedEncapsulationDomRenderer2 extends NoneEncapsulationDomRenderer {
   private hostAttr: string;
 
   constructor(
-      eventManager: EventManager, sharedStylesHost: SharedStylesHost, component: RendererType2,
-      appId: string, removeStylesOnCompDestory: boolean, doc: Document, ngZone: NgZone,
-      platformIsServer: boolean) {
+    eventManager: EventManager,
+    sharedStylesHost: SharedStylesHost,
+    component: RendererType2,
+    appId: string,
+    removeStylesOnCompDestroy: boolean,
+    doc: Document,
+    ngZone: NgZone,
+    platformIsServer: boolean,
+    tracingService: TracingService<TracingSnapshot> | null,
+  ) {
     const compId = appId + '-' + component.id;
     super(
-        eventManager, sharedStylesHost, component, removeStylesOnCompDestory, doc, ngZone,
-        platformIsServer, compId);
+      eventManager,
+      sharedStylesHost,
+      component,
+      removeStylesOnCompDestroy,
+      doc,
+      ngZone,
+      platformIsServer,
+      tracingService,
+      compId,
+    );
     this.contentAttr = shimContentAttribute(compId);
     this.hostAttr = shimHostAttribute(compId);
   }
