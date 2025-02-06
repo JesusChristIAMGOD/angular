@@ -3,10 +3,10 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {computed, signal, untracked} from '@angular/core/src/signals';
+import {computed, signal, untracked} from '@angular/core';
 
 import {flushEffects, resetEffects, testingEffect} from './effect_util';
 
