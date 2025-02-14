@@ -2,26 +2,11 @@ workspace(
     name = "angular",
     managed_directories = {
         "@npm": ["node_modules"],
-        "@aio_npm": ["aio/node_modules"],
     },
 )
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("//:yarn.bzl", "YARN_LABEL")
-
-# Add a patch fix for rules_webtesting v0.3.5 required for enabling runfiles on Windows.
-# TODO: Remove the http_archive for this transitive dependency when a release is cut
-# for https://github.com/bazelbuild/rules_webtesting/commit/581b1557e382f93419da6a03b91a45c2ac9a9ec8
-# and the version is updated in rules_nodejs.
-http_archive(
-    name = "io_bazel_rules_webtesting",
-    patch_args = ["-p1"],
-    patches = [
-        "//:tools/bazel-repo-patches/rules_webtesting__windows_runfiles_fix.patch",
-    ],
-    sha256 = "e9abb7658b6a129740c0b3ef6f5a2370864e102a5ba5ffca2cea565829ed825a",
-    urls = ["https://github.com/bazelbuild/rules_webtesting/releases/download/0.3.5/rules_webtesting.tar.gz"],
-)
 
 http_archive(
     name = "build_bazel_rules_nodejs",
@@ -64,12 +49,17 @@ load("@rules_nodejs//nodejs:repositories.bzl", "nodejs_register_toolchains")
 
 nodejs_register_toolchains(
     name = "nodejs",
-    node_version = "16.14.0",
-)
-
-nodejs_register_toolchains(
-    name = "node18",
-    node_version = "18.10.0",
+    node_repositories = {
+        "18.20.5-darwin_arm64": ("node-v18.20.5-darwin-arm64.tar.gz", "node-v18.20.5-darwin-arm64", "bdfeaf59dbf29aec08c0c66130edf0a8a17014b4f2997727641dfd0b58b51f48"),
+        "18.20.5-darwin_amd64": ("node-v18.20.5-darwin-x64.tar.gz", "node-v18.20.5-darwin-x64", "dff01068da7d3fe7b515f72a3903dca96a34dc377f6f426b6a813901274b6441"),
+        "18.20.5-linux_arm64": ("node-v18.20.5-linux-arm64.tar.xz", "node-v18.20.5-linux-arm64", "a77db6ab34267f3bc80e02ed68abf51b7065eb5c82fcd69adc4b40e390d9b116"),
+        "18.20.5-linux_ppc64le": ("node-v18.20.5-linux-ppc64le.tar.xz", "node-v18.20.5-linux-ppc64le", "63b4c6801c96fb452e3bd8125e8b5b195ecacc4fa2505e47a128e94587999aeb"),
+        "18.20.5-linux_s390x": ("node-v18.20.5-linux-s390x.tar.xz", "node-v18.20.5-linux-s390x", "617d7456e16534a4b4e03f5285cc8d13581f39cdad9196efff2516d6588de319"),
+        "18.20.5-linux_amd64": ("node-v18.20.5-linux-x64.tar.xz", "node-v18.20.5-linux-x64", "e4a3a21e5ac7e074ed50d2533dd0087d8460647ab567464867141a2b643f3fb3"),
+        "18.20.5-windows_amd64": ("node-v18.20.5-win-x64.zip", "node-v18.20.5-win-x64", "910237449895b4de61026568dc076fa6c3ffcd667563ed03112a4a77e1f1556b"),
+    },
+    # We need at least Node 18.20.5 due to some transitive dependencies.
+    node_version = "18.20.5",
 )
 
 # Download npm dependencies.
@@ -83,8 +73,9 @@ yarn_install(
     data = [
         YARN_LABEL,
         "//:.yarnrc",
+        "//:tools/npm-patches/@bazel+jasmine+5.8.1.patch",
         "//tools:postinstall-patches.js",
-        "//tools/esm-interop:patches/npm/@angular+build-tooling+0.0.0-e859696da7af56c811b6589f1ae888222d93d797.patch",
+        "//tools/esm-interop:patches/npm/@angular+build-tooling+0.0.0-d30a56c19bafaac67cf44e605ed8c2c0e45b0a51.patch",
         "//tools/esm-interop:patches/npm/@bazel+concatjs+5.8.1.patch",
         "//tools/esm-interop:patches/npm/@bazel+esbuild+5.7.1.patch",
         "//tools/esm-interop:patches/npm/@bazel+protractor+5.7.1.patch",
@@ -101,53 +92,6 @@ yarn_install(
     symlink_node_modules = True,
     yarn = YARN_LABEL,
     yarn_lock = "//:yarn.lock",
-)
-
-yarn_install(
-    name = "aio_npm",
-    # Note that we add the postinstall scripts here so that the dependencies are re-installed
-    # when the postinstall patches are modified.
-    data = [
-        YARN_LABEL,
-        "//:.yarnrc",
-        "//aio:tools/cli-patches/bazel-architect-output.patch",
-        "//aio:tools/cli-patches/patch.js",
-    ],
-    # Currently disabled due to:
-    #  1. Missing Windows support currently.
-    #  2. Incompatibilites with the `ts_library` rule.
-    exports_directories_only = False,
-    manual_build_file_contents = npm_package_archives(),
-    package_json = "//aio:package.json",
-    # We prefer to symlink the `node_modules` to only maintain a single install.
-    # See https://github.com/angular/dev-infra/pull/446#issuecomment-1059820287 for details.
-    symlink_node_modules = True,
-    yarn = YARN_LABEL,
-    yarn_lock = "//aio:yarn.lock",
-)
-
-yarn_install(
-    name = "aio_example_deps",
-    # Rename the default js_library target from "node_modules" as this obscures the
-    # the source directory stamped as a filegroup in the manual BUILD contents below.
-    all_node_modules_target_name = "node_modules_all",
-    data = [
-        YARN_LABEL,
-        "//:.yarnrc",
-    ],
-    # Disabled because, when False, yarn_install preserves the node_modules folder
-    # with bin symlinks in the external repository. This is needed to link the shared
-    # set of deps for example e2es.
-    exports_directories_only = False,
-    manual_build_file_contents = """\
-filegroup(
-    name = "node_modules_files",
-    srcs = ["node_modules"],
-)
-""",
-    package_json = "//aio/tools/examples/shared:package.json",
-    yarn = YARN_LABEL,
-    yarn_lock = "//aio/tools/examples/shared:yarn.lock",
 )
 
 load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies")
@@ -199,10 +143,10 @@ cldr_xml_data_repository(
 # sass rules
 http_archive(
     name = "io_bazel_rules_sass",
-    sha256 = "033248203546d4ac5692edfb9314c75bc654de3a163c2eee92762893ea493a06",
-    strip_prefix = "rules_sass-13ff55c4a7dea6fbce8c429a1e6dae85bd2f4eca",
+    sha256 = "54bca211ea0a4de2c740a6e24b9d11225942a95452799b6a64dba36e082b7249",
+    strip_prefix = "rules_sass-c01e8848f30f8e4672babcbe41c3ac3551f3a800",
     urls = [
-        "https://github.com/bazelbuild/rules_sass/archive/13ff55c4a7dea6fbce8c429a1e6dae85bd2f4eca.zip",
+        "https://github.com/bazelbuild/rules_sass/archive/c01e8848f30f8e4672babcbe41c3ac3551f3a800.zip",
     ],
 )
 
@@ -236,4 +180,16 @@ http_archive(
     sha256 = "28277ce81ef9ab84f5b87b526258920a8ead44789a5034346e872629bbf38089",
     strip_prefix = "sc-4.8.2-osx",
     url = "https://saucelabs.com/downloads/sc-4.8.2-osx.zip",
+)
+
+yarn_install(
+    name = "npm_ts_versions",
+    data = [
+        YARN_LABEL,
+        "//:.yarnrc",
+    ],
+    exports_directories_only = False,
+    package_json = "//packages/core/schematics/migrations/signal-migration/test/ts-versions:package.json",
+    yarn = YARN_LABEL,
+    yarn_lock = "//packages/core/schematics/migrations/signal-migration/test/ts-versions:yarn.lock",
 )
