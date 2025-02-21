@@ -3,10 +3,8 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
-
-import '@angular/core/test/bundling/util/src/reflect_metadata';
 
 import {CommonModule} from '@angular/common';
 import {Component, Injectable, NgModule} from '@angular/core';
@@ -23,7 +21,10 @@ class Todo {
     this._title = value.trim();
   }
 
-  constructor(title: string, public completed: boolean = false) {
+  constructor(
+    title: string,
+    public completed: boolean = false,
+  ) {
     this.editing = false;
     this.title = title;
   }
@@ -48,7 +49,7 @@ class TodoStore {
   }
 
   setAllTo(completed: boolean) {
-    this.todos.forEach((t: Todo) => t.completed = completed);
+    this.todos.forEach((t: Todo) => (t.completed = completed));
   }
 
   removeCompleted() {
@@ -79,13 +80,15 @@ class TodoStore {
 @Component({
   selector: 'todo-app',
   // TODO(misko): make this work with `[(ngModel)]`
-  styles: [`
+  styles: [
+    `
     .todo-list li.completed label {
       color: #d9d9d9;
       text-decoration: line-through;
       font-weight:bold;
     }
-  `],
+  `,
+  ],
   template: `
   <section class="todoapp">
     <header class="header">
@@ -133,8 +136,7 @@ class TodoStore {
     </footer>
   </section>
   `,
-  // TODO(misko): switch over to OnPush
-  // changeDetection: ChangeDetectionStrategy.OnPush
+  standalone: false,
 })
 class ToDoAppComponent {
   newTodoText = '';
