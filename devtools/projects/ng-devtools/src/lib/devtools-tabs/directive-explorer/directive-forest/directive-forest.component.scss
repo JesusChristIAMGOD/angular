@@ -1,3 +1,5 @@
+@use '../../../../styles/theme' as theme;
+
 :host {
   width: 100%;
   height: 100%;
@@ -15,13 +17,17 @@
     white-space: nowrap;
     text-overflow: ellipsis;
 
-    & > button {
-      outline: none;
-      border: 0;
-      padding: 0;
-      position: absolute;
-      background-color: transparent;
-      top: 2px;
+    .tree-node-info {
+      display: flex;
+
+      & > button {
+        outline: none;
+        border: 0;
+        padding: 0;
+        position: absolute;
+        background-color: transparent;
+        top: 2px;
+      }
     }
 
     .mat-icon {
@@ -35,7 +41,8 @@
       color: #9b4807;
     }
 
-    .console-reference {
+    .console-reference,
+    .on-push {
       color: #748591;
       padding-left: 8px;
       font-style: italic;
@@ -56,6 +63,23 @@
     &.selected,
     &.highlighted {
       background-color: #cfe8fc;
+    }
+
+    .hydration {
+      margin: auto 8px auto auto;
+      font-size: 14px;
+      color: #60a6fc;
+
+      position: sticky;
+      right: 0;
+
+      &.skipped {
+        color: #9a9a9a;
+      }
+
+      &.mismatched {
+        color: #ff0040;
+      }
     }
   }
 }
@@ -122,7 +146,24 @@
   }
 }
 
-:host-context(.dark-theme) {
+.hydration-error {
+  color: #e62222;
+  margin-left: 16px;
+  padding: 0 8px 8px 0px;
+
+  pre {
+    margin: 0;
+    background: rgba(1, 1, 1, 0.05);
+    padding: 8px;
+    border-radius: 8px;
+
+    &:not(:last-child) {
+      margin-bottom: 16px;
+    }
+  }
+}
+
+@include theme.dark-theme {
   .tree-node {
     color: #5cadd3;
 
@@ -153,6 +194,25 @@
     &.selected,
     &.highlighted {
       background-color: #073d69;
+    }
+
+    .hydration {
+      color: #60a6fc;
+
+      &.skipped {
+        color: #9a9a9a;
+      }
+
+      &.mismatched {
+        color: #ff0040;
+      }
+    }
+
+    .hydration-error {
+      color: #ea7171;
+      pre {
+        background: rgb(1, 1, 1, 0.2);
+      }
     }
   }
 }

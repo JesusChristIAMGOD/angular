@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {inject, Injectable, InjectionToken} from '@angular/core';
@@ -26,8 +26,8 @@ import {DOCUMENT} from '../dom_tokens';
  * when they need to interact with the DOM APIs like pushState, popState, etc.
  *
  * {@link LocationStrategy} in turn is used by the {@link Location} service which is used directly
- * by the {@link Router} in order to navigate between routes. Since all interactions between {@link
- * Router} /
+ * by the {@link /api/router/Router Router} in order to navigate between routes. Since all interactions between
+ * {@link /api/router/Router Router} /
  * {@link Location} / {@link LocationStrategy} and DOM APIs flow through the `PlatformLocation`
  * class, they are all platform-agnostic.
  *
@@ -63,7 +63,7 @@ export abstract class PlatformLocation {
   abstract back(): void;
 
   historyGo?(relativePosition: number): void {
-    throw new Error('Not implemented');
+    throw new Error(ngDevMode ? 'Not implemented' : '');
   }
 }
 
@@ -73,7 +73,9 @@ export abstract class PlatformLocation {
  *
  * @publicApi
  */
-export const LOCATION_INITIALIZED = new InjectionToken<Promise<any>>('Location Initialized');
+export const LOCATION_INITIALIZED = new InjectionToken<Promise<any>>(
+  ngDevMode ? 'Location Initialized' : '',
+);
 
 /**
  * @description
@@ -92,8 +94,6 @@ export interface LocationChangeEvent {
 export interface LocationChangeListener {
   (event: LocationChangeEvent): any;
 }
-
-
 
 /**
  * `PlatformLocation` encapsulates all of the direct calls to platform APIs.
