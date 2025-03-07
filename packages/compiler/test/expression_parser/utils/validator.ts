@@ -3,15 +3,43 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {AST, Binary, BindingPipe, Call, Chain, Conditional, ImplicitReceiver, Interpolation, KeyedRead, KeyedWrite, LiteralArray, LiteralMap, LiteralPrimitive, ParseSpan, PrefixNot, PropertyRead, PropertyWrite, RecursiveAstVisitor, SafeCall, SafeKeyedRead, SafePropertyRead, Unary} from '../../../src/expression_parser/ast';
+import {
+  AST,
+  Binary,
+  BindingPipe,
+  Call,
+  Chain,
+  Conditional,
+  ImplicitReceiver,
+  Interpolation,
+  KeyedRead,
+  KeyedWrite,
+  LiteralArray,
+  LiteralMap,
+  LiteralPrimitive,
+  ParseSpan,
+  PrefixNot,
+  PropertyRead,
+  PropertyWrite,
+  RecursiveAstVisitor,
+  SafeCall,
+  SafeKeyedRead,
+  SafePropertyRead,
+  TaggedTemplateLiteral,
+  TemplateLiteral,
+  TemplateLiteralElement,
+  TypeofExpression,
+  Unary,
+  VoidExpression,
+} from '../../../src/expression_parser/ast';
 
 import {unparse} from './unparser';
 
 class ASTValidator extends RecursiveAstVisitor {
-  private parentSpan: ParseSpan|undefined;
+  private parentSpan: ParseSpan | undefined;
 
   override visit(ast: AST) {
     this.parentSpan = undefined;
@@ -22,8 +50,11 @@ class ASTValidator extends RecursiveAstVisitor {
     if (!inSpan(ast.span, this.parentSpan)) {
       if (this.parentSpan) {
         const parentSpan = this.parentSpan as ParseSpan;
-        throw Error(`Invalid AST span [expected (${ast.span.start}, ${ast.span.end}) to be in (${
-            parentSpan.start},  ${parentSpan.end}) for ${unparse(ast)}`);
+        throw Error(
+          `Invalid AST span [expected (${ast.span.start}, ${ast.span.end}) to be in (${
+            parentSpan.start
+          },  ${parentSpan.end}) for ${unparse(ast)}`,
+        );
       } else {
         throw Error(`Invalid root AST span for ${unparse(ast)}`);
       }
@@ -86,6 +117,14 @@ class ASTValidator extends RecursiveAstVisitor {
     this.validate(ast, () => super.visitPrefixNot(ast, context));
   }
 
+  override visitTypeofExpression(ast: TypeofExpression, context: any): any {
+    this.validate(ast, () => super.visitTypeofExpression(ast, context));
+  }
+
+  override visitVoidExpression(ast: VoidExpression, context: any): any {
+    this.validate(ast, () => super.visitVoidExpression(ast, context));
+  }
+
   override visitPropertyRead(ast: PropertyRead, context: any): any {
     this.validate(ast, () => super.visitPropertyRead(ast, context));
   }
@@ -109,9 +148,21 @@ class ASTValidator extends RecursiveAstVisitor {
   override visitSafeCall(ast: SafeCall, context: any): any {
     this.validate(ast, () => super.visitSafeCall(ast, context));
   }
+
+  override visitTemplateLiteral(ast: TemplateLiteral, context: any): any {
+    this.validate(ast, () => super.visitTemplateLiteral(ast, context));
+  }
+
+  override visitTemplateLiteralElement(ast: TemplateLiteralElement, context: any): any {
+    this.validate(ast, () => super.visitTemplateLiteralElement(ast, context));
+  }
+
+  override visitTaggedTemplateLiteral(ast: TaggedTemplateLiteral, context: any): void {
+    this.validate(ast, () => super.visitTaggedTemplateLiteral(ast, context));
+  }
 }
 
-function inSpan(span: ParseSpan, parentSpan: ParseSpan|undefined): parentSpan is ParseSpan {
+function inSpan(span: ParseSpan, parentSpan: ParseSpan | undefined): parentSpan is ParseSpan {
   return !parentSpan || (span.start >= parentSpan.start && span.end <= parentSpan.end);
 }
 
