@@ -3,18 +3,31 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {DOCUMENT} from '@angular/common';
-import {EnvironmentInjector, Inject, inject, Injectable} from '@angular/core';
+import {
+  EnvironmentInjector,
+  Inject,
+  inject,
+  Injectable,
+  runInInjectionContext,
+  ɵRuntimeError as RuntimeError,
+} from '@angular/core';
 import {Observable, Observer} from 'rxjs';
 
 import {HttpBackend, HttpHandler} from './backend';
 import {HttpHandlerFn} from './interceptor';
 import {HttpRequest} from './request';
-import {HttpErrorResponse, HttpEvent, HttpEventType, HttpResponse, HttpStatusCode} from './response';
-
+import {
+  HTTP_STATUS_CODE_OK,
+  HttpErrorResponse,
+  HttpEvent,
+  HttpEventType,
+  HttpResponse,
+} from './response';
+import {RuntimeErrorCode} from './errors';
 
 // Every request made through JSONP needs a callback name that's unique across the
 // whole page. Each request is assigned an id and the callback name is constructed
@@ -26,7 +39,7 @@ let nextRequestId: number = 0;
  * When a pending <script> is unsubscribed we'll move it to this document, so it won't be
  * executed.
  */
-let foreignDocument: Document|undefined;
+let foreignDocument: Document | undefined;
 
 // Error text given when a JSONP script is injected, but doesn't invoke the callback
 // passed in its URL.
@@ -82,7 +95,10 @@ export class JsonpClientBackend implements HttpBackend {
    */
   private readonly resolvedPromise = Promise.resolve();
 
-  constructor(private callbackMap: JsonpCallbackContext, @Inject(DOCUMENT) private document: any) {}
+  constructor(
+    private callbackMap: JsonpCallbackContext,
+    @Inject(DOCUMENT) private document: any,
+  ) {}
 
   /**
    * Get the name of the next callback method, by incrementing the global `nextRequestId`.
@@ -101,15 +117,24 @@ export class JsonpClientBackend implements HttpBackend {
     // Firstly, check both the method and response type. If either doesn't match
     // then the request was improperly routed here and cannot be handled.
     if (req.method !== 'JSONP') {
-      throw new Error(JSONP_ERR_WRONG_METHOD);
+      throw new RuntimeError(
+        RuntimeErrorCode.JSONP_WRONG_METHOD,
+        ngDevMode && JSONP_ERR_WRONG_METHOD,
+      );
     } else if (req.responseType !== 'json') {
-      throw new Error(JSONP_ERR_WRONG_RESPONSE_TYPE);
+      throw new RuntimeError(
+        RuntimeErrorCode.JSONP_WRONG_RESPONSE_TYPE,
+        ngDevMode && JSONP_ERR_WRONG_RESPONSE_TYPE,
+      );
     }
 
     // Check the request headers. JSONP doesn't support headers and
     // cannot set any that were supplied.
     if (req.headers.keys().length > 0) {
-      throw new Error(JSONP_ERR_HEADERS_NOT_SUPPORTED);
+      throw new RuntimeError(
+        RuntimeErrorCode.JSONP_HEADERS_NOT_SUPPORTED,
+        ngDevMode && JSONP_ERR_HEADERS_NOT_SUPPORTED,
+      );
     }
 
     // Everything else happens inside the Observable boundary.
@@ -128,7 +153,7 @@ export class JsonpClientBackend implements HttpBackend {
       // are closed over and track state across those callbacks.
 
       // The response object, if one has been received, or null otherwise.
-      let body: any|null = null;
+      let body: any | null = null;
 
       // Whether the response callback has been called.
       let finished: boolean = false;
@@ -149,10 +174,11 @@ export class JsonpClientBackend implements HttpBackend {
       // the response callback from the window. This logic is used in both the
       // success, error, and cancellation paths, so it's extracted out for convenience.
       const cleanup = () => {
+        node.removeEventListener('load', onLoad);
+        node.removeEventListener('error', onError);
+
         // Remove the <script> tag if it's still on the page.
-        if (node.parentNode) {
-          node.parentNode.removeChild(node);
-        }
+        node.remove();
 
         // Remove the response callback from the callbackMap (window object in the
         // browser).
@@ -163,7 +189,7 @@ export class JsonpClientBackend implements HttpBackend {
       // if the JSONP script loads successfully. The event itself is unimportant.
       // If something went wrong, onLoad() may run without the response callback
       // having been invoked.
-      const onLoad = (event: Event) => {
+      const onLoad = () => {
         // We wrap it in an extra Promise, to ensure the microtask
         // is scheduled after the loaded endpoint has executed any potential microtask itself,
         // which is not guaranteed in Internet Explorer and EdgeHTML. See issue #39496
@@ -175,23 +201,27 @@ export class JsonpClientBackend implements HttpBackend {
           if (!finished) {
             // It hasn't, something went wrong with the request. Return an error via
             // the Observable error path. All JSONP errors have status 0.
-            observer.error(new HttpErrorResponse({
-              url,
-              status: 0,
-              statusText: 'JSONP Error',
-              error: new Error(JSONP_ERR_NO_CALLBACK),
-            }));
+            observer.error(
+              new HttpErrorResponse({
+                url,
+                status: 0,
+                statusText: 'JSONP Error',
+                error: new Error(JSONP_ERR_NO_CALLBACK),
+              }),
+            );
             return;
           }
 
           // Success. body either contains the response body or null if none was
           // returned.
-          observer.next(new HttpResponse({
-            body,
-            status: HttpStatusCode.Ok,
-            statusText: 'OK',
-            url,
-          }));
+          observer.next(
+            new HttpResponse({
+              body,
+              status: HTTP_STATUS_CODE_OK,
+              statusText: 'OK',
+              url,
+            }),
+          );
 
           // Complete the stream, the response is over.
           observer.complete();
@@ -201,16 +231,18 @@ export class JsonpClientBackend implements HttpBackend {
       // onError() is the error callback, which runs if the script returned generates
       // a Javascript error. It emits the error via the Observable error channel as
       // a HttpErrorResponse.
-      const onError: any = (error: Error) => {
+      const onError = (error: Error) => {
         cleanup();
 
         // Wrap the error in a HttpErrorResponse.
-        observer.error(new HttpErrorResponse({
-          error,
-          status: 0,
-          statusText: 'JSONP Error',
-          url,
-        }));
+        observer.error(
+          new HttpErrorResponse({
+            error,
+            status: 0,
+            statusText: 'JSONP Error',
+            url,
+          }),
+        );
       };
 
       // Subscribe to both the success (load) and error events on the <script> tag,
@@ -238,9 +270,8 @@ export class JsonpClientBackend implements HttpBackend {
     // Issue #34818
     // Changing <script>'s ownerDocument will prevent it from execution.
     // https://html.spec.whatwg.org/multipage/scripting.html#execute-the-script-block
-    if (!foreignDocument) {
-      foreignDocument = (this.document.implementation as DOMImplementation).createHTMLDocument();
-    }
+    foreignDocument ??= (this.document.implementation as DOMImplementation).createHTMLDocument();
+
     foreignDocument.adoptNode(script);
   }
 }
@@ -249,7 +280,9 @@ export class JsonpClientBackend implements HttpBackend {
  * Identifies requests with the method JSONP and shifts them to the `JsonpClientBackend`.
  */
 export function jsonpInterceptorFn(
-    req: HttpRequest<unknown>, next: HttpHandlerFn): Observable<HttpEvent<unknown>> {
+  req: HttpRequest<unknown>,
+  next: HttpHandlerFn,
+): Observable<HttpEvent<unknown>> {
   if (req.method === 'JSONP') {
     return inject(JsonpClientBackend).handle(req as HttpRequest<never>);
   }
@@ -278,8 +311,8 @@ export class JsonpInterceptor {
    * @returns An observable of the event stream.
    */
   intercept(initialRequest: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    return this.injector.runInContext(
-        () => jsonpInterceptorFn(
-            initialRequest, downstreamRequest => next.handle(downstreamRequest)));
+    return runInInjectionContext(this.injector, () =>
+      jsonpInterceptorFn(initialRequest, (downstreamRequest) => next.handle(downstreamRequest)),
+    );
   }
 }
