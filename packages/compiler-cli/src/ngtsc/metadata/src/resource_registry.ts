@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import ts from 'typescript';
@@ -19,7 +19,7 @@ import {ClassDeclaration} from '../../reflection';
  * If the resource is inline, the `path` will be `null`.
  */
 export interface Resource {
-  path: AbsoluteFsPath|null;
+  path: AbsoluteFsPath | null;
   expression: ts.Expression;
 }
 
@@ -32,17 +32,18 @@ export function isExternalResource(resource: Resource): resource is ExternalReso
 }
 
 /**
- * Represents the either inline or external resources of a component.
+ * Represents the either inline or external resources of a directive.
  *
  * A resource with a `path` of `null` is considered inline.
+ * The template will be present for components, but will be null for directives.
  */
-export interface ComponentResources {
-  template: Resource;
-  styles: ReadonlySet<Resource>;
+export interface DirectiveResources {
+  template: Resource | null;
+  styles: ReadonlySet<Resource> | null;
 }
 
 /**
- * Tracks the mapping between external template/style files and the component(s) which use them.
+ * Tracks the mapping between external resources and the directives(s) which use them.
  *
  * This information is produced during analysis of the program and is used mainly to support
  * external tooling, for which such a mapping is challenging to determine without compiler
@@ -62,16 +63,18 @@ export class ResourceRegistry {
     return this.externalTemplateToComponentsMap.get(template)!;
   }
 
-  registerResources(resources: ComponentResources, component: ClassDeclaration) {
+  registerResources(resources: DirectiveResources, directive: ClassDeclaration) {
     if (resources.template !== null) {
-      this.registerTemplate(resources.template, component);
+      this.registerTemplate(resources.template, directive);
     }
-    for (const style of resources.styles) {
-      this.registerStyle(style, component);
+    if (resources.styles !== null) {
+      for (const style of resources.styles) {
+        this.registerStyle(style, directive);
+      }
     }
   }
 
-  registerTemplate(templateResource: Resource, component: ClassDeclaration): void {
+  private registerTemplate(templateResource: Resource, component: ClassDeclaration): void {
     const {path} = templateResource;
     if (path !== null) {
       if (!this.externalTemplateToComponentsMap.has(path)) {
@@ -82,14 +85,14 @@ export class ResourceRegistry {
     this.componentToTemplateMap.set(component, templateResource);
   }
 
-  getTemplate(component: ClassDeclaration): Resource|null {
+  getTemplate(component: ClassDeclaration): Resource | null {
     if (!this.componentToTemplateMap.has(component)) {
       return null;
     }
     return this.componentToTemplateMap.get(component)!;
   }
 
-  registerStyle(styleResource: Resource, component: ClassDeclaration): void {
+  private registerStyle(styleResource: Resource, component: ClassDeclaration): void {
     const {path} = styleResource;
     if (!this.componentToStylesMap.has(component)) {
       this.componentToStylesMap.set(component, new Set());

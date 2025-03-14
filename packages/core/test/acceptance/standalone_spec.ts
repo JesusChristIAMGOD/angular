@@ -3,21 +3,37 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {CommonModule} from '@angular/common';
-import {Component, createEnvironmentInjector, Directive, EnvironmentInjector, forwardRef, Injector, Input, isStandalone, NgModule, NO_ERRORS_SCHEMA, OnInit, Pipe, PipeTransform, ViewChild, ViewContainerRef} from '@angular/core';
+import {CommonModule, NgComponentOutlet} from '@angular/common';
+import {
+  Component,
+  createEnvironmentInjector,
+  Directive,
+  EnvironmentInjector,
+  forwardRef,
+  inject,
+  Injectable,
+  Injector,
+  Input,
+  isStandalone,
+  NgModule,
+  NO_ERRORS_SCHEMA,
+  OnInit,
+  Pipe,
+  PipeTransform,
+  ViewChild,
+  ViewContainerRef,
+} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 
 describe('standalone components, directives, and pipes', () => {
   it('should render a standalone component', () => {
     @Component({
-      standalone: true,
       template: 'Look at me, no NgModule!',
     })
-    class StandaloneCmp {
-    }
+    class StandaloneCmp {}
 
     const fixture = TestBed.createComponent(StandaloneCmp);
     fixture.detectChanges();
@@ -27,18 +43,15 @@ describe('standalone components, directives, and pipes', () => {
   it('should render a recursive standalone component', () => {
     @Component({
       selector: 'tree',
-      standalone: true,
-      template:
-          `({{level}})<ng-template [ngIf]="level > 0"><tree [level]="level - 1"></tree></ng-template>`,
-      imports: [CommonModule]
+      template: `({{level}})<ng-template [ngIf]="level > 0"><tree [level]="level - 1"></tree></ng-template>`,
+      imports: [CommonModule],
     })
     class TreeCmp {
       @Input() level = 0;
     }
 
-    @Component({standalone: true, template: '<tree [level]="3"></tree>', imports: [TreeCmp]})
-    class StandaloneCmp {
-    }
+    @Component({template: '<tree [level]="3"></tree>', imports: [TreeCmp]})
+    class StandaloneCmp {}
 
     const fixture = TestBed.createComponent(StandaloneCmp);
     fixture.detectChanges();
@@ -47,77 +60,87 @@ describe('standalone components, directives, and pipes', () => {
 
   it('should render a standalone component with a standalone dependency', () => {
     @Component({
-      standalone: true,
       selector: 'inner-cmp',
       template: 'Look at me, no NgModule!',
     })
-    class InnerCmp {
-    }
+    class InnerCmp {}
 
     @Component({
-      standalone: true,
       template: '<inner-cmp></inner-cmp>',
       imports: [InnerCmp],
     })
-    class StandaloneCmp {
-    }
+    class StandaloneCmp {}
 
     const fixture = TestBed.createComponent(StandaloneCmp);
     fixture.detectChanges();
-    expect(fixture.nativeElement.innerHTML)
-        .toEqual('<inner-cmp>Look at me, no NgModule!</inner-cmp>');
+    expect(fixture.nativeElement.innerHTML).toEqual(
+      '<inner-cmp>Look at me, no NgModule!</inner-cmp>',
+    );
   });
 
+  it('should render a standalone component (with standalone: true) with a standalone dependency', () => {
+    @Component({
+      selector: 'inner-cmp',
+      template: 'Look at me, no NgModule!',
+    })
+    class InnerCmp {}
+
+    @Component({
+      template: '<inner-cmp></inner-cmp>',
+      imports: [InnerCmp],
+    })
+    class StandaloneCmp {}
+
+    const fixture = TestBed.createComponent(StandaloneCmp);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.innerHTML).toEqual(
+      '<inner-cmp>Look at me, no NgModule!</inner-cmp>',
+    );
+  });
 
   it('should render a standalone component with an NgModule-based dependency', () => {
     @Component({
       selector: 'inner-cmp',
       template: 'Look at me, no NgModule (kinda)!',
+      standalone: false,
     })
-    class InnerCmp {
-    }
+    class InnerCmp {}
 
     @NgModule({
       declarations: [InnerCmp],
       exports: [InnerCmp],
     })
-    class Module {
-    }
+    class Module {}
 
     @Component({
-      standalone: true,
       template: '<inner-cmp></inner-cmp>',
       imports: [Module],
     })
-    class StandaloneCmp {
-    }
+    class StandaloneCmp {}
 
     const fixture = TestBed.createComponent(StandaloneCmp);
     fixture.detectChanges();
-    expect(fixture.nativeElement.innerHTML)
-        .toEqual('<inner-cmp>Look at me, no NgModule (kinda)!</inner-cmp>');
+    expect(fixture.nativeElement.innerHTML).toEqual(
+      '<inner-cmp>Look at me, no NgModule (kinda)!</inner-cmp>',
+    );
   });
 
   it('should allow exporting standalone components, directives, and pipes from NgModule', () => {
     @Component({
       selector: 'standalone-cmp',
-      standalone: true,
       template: `standalone`,
     })
-    class StandaloneCmp {
-    }
+    class StandaloneCmp {}
 
     @Directive({
       selector: '[standalone-dir]',
       host: {
         '[attr.id]': '"standalone"',
       },
-      standalone: true
     })
-    class StandaloneDir {
-    }
+    class StandaloneDir {}
 
-    @Pipe({name: 'standalonePipe', standalone: true})
+    @Pipe({name: 'standalonePipe'})
     class StandalonePipe implements PipeTransform {
       transform(value: any) {
         return `|${value}`;
@@ -128,15 +151,14 @@ describe('standalone components, directives, and pipes', () => {
       imports: [StandaloneCmp, StandaloneDir, StandalonePipe],
       exports: [StandaloneCmp, StandaloneDir, StandalonePipe],
     })
-    class LibModule {
-    }
+    class LibModule {}
 
     @Component({
       selector: 'app-cmpt',
       template: `<standalone-cmp standalone-dir></standalone-cmp>{{'standalone' | standalonePipe}}`,
+      standalone: false,
     })
-    class AppComponent {
-    }
+    class AppComponent {}
 
     TestBed.configureTestingModule({
       imports: [LibModule],
@@ -147,30 +169,26 @@ describe('standalone components, directives, and pipes', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toBe('standalone|standalone');
-    expect(fixture.nativeElement.querySelector('standalone-cmp').getAttribute('id'))
-        .toBe('standalone');
+    expect(fixture.nativeElement.querySelector('standalone-cmp').getAttribute('id')).toBe(
+      'standalone',
+    );
   });
-
 
   it('should render a standalone component with dependencies and ambient providers', () => {
     @Component({
-      standalone: true,
       template: 'Inner',
       selector: 'inner-cmp',
     })
-    class InnerCmp {
-    }
+    class InnerCmp {}
 
     class Service {
       value = 'Service';
     }
 
     @NgModule({providers: [Service]})
-    class ModuleWithAProvider {
-    }
+    class ModuleWithAProvider {}
 
     @Component({
-      standalone: true,
       template: 'Outer<inner-cmp></inner-cmp>{{service.value}}',
       imports: [InnerCmp, ModuleWithAProvider],
     })
@@ -189,11 +207,9 @@ describe('standalone components, directives, and pipes', () => {
     }
 
     @NgModule({providers: [Service]})
-    class ModuleWithAProvider {
-    }
+    class ModuleWithAProvider {}
 
     @Component({
-      standalone: true,
       template: 'Inner({{service.value}})',
       selector: 'inner-cmp',
       imports: [ModuleWithAProvider],
@@ -203,7 +219,6 @@ describe('standalone components, directives, and pipes', () => {
     }
 
     @Component({
-      standalone: true,
       template: 'Outer<inner-cmp></inner-cmp>{{service.value}}',
       imports: [InnerCmp],
     })
@@ -213,8 +228,65 @@ describe('standalone components, directives, and pipes', () => {
 
     const fixture = TestBed.createComponent(OuterCmp);
     fixture.detectChanges();
-    expect(fixture.nativeElement.innerHTML)
-        .toEqual('Outer<inner-cmp>Inner(Service)</inner-cmp>Service');
+    expect(fixture.nativeElement.innerHTML).toEqual(
+      'Outer<inner-cmp>Inner(Service)</inner-cmp>Service',
+    );
+  });
+
+  it('should correctly associate an injector with a standalone component def', () => {
+    @Injectable()
+    class MyServiceA {}
+
+    @Injectable()
+    class MyServiceB {}
+
+    @NgModule({
+      providers: [MyServiceA],
+    })
+    class MyModuleA {}
+
+    @NgModule({
+      providers: [MyServiceB],
+    })
+    class MyModuleB {}
+
+    @Component({
+      selector: 'duplicate-selector',
+      template: `ComponentA: {{ service ? 'service found' : 'service not found' }}`,
+      imports: [MyModuleA],
+    })
+    class ComponentA {
+      service = inject(MyServiceA, {optional: true});
+    }
+
+    @Component({
+      selector: 'duplicate-selector',
+      template: `ComponentB: {{ service ? 'service found' : 'service not found' }}`,
+      imports: [MyModuleB],
+    })
+    class ComponentB {
+      service = inject(MyServiceB, {optional: true});
+    }
+
+    @Component({
+      selector: 'app-cmp',
+      template: `
+        <ng-container [ngComponentOutlet]="ComponentA" />
+        <ng-container [ngComponentOutlet]="ComponentB" />
+      `,
+      imports: [NgComponentOutlet],
+    })
+    class AppCmp {
+      ComponentA = ComponentA;
+      ComponentB = ComponentB;
+    }
+
+    const fixture = TestBed.createComponent(AppCmp);
+    fixture.detectChanges();
+
+    const textContent = fixture.nativeElement.textContent;
+    expect(textContent).toContain('ComponentA: service found');
+    expect(textContent).toContain('ComponentB: service found');
   });
 
   it('should dynamically insert a standalone component', () => {
@@ -223,11 +295,9 @@ describe('standalone components, directives, and pipes', () => {
     }
 
     @NgModule({providers: [Service]})
-    class Module {
-    }
+    class Module {}
 
     @Component({
-      standalone: true,
       template: 'Inner({{service.value}})',
       selector: 'inner-cmp',
       imports: [Module],
@@ -237,7 +307,6 @@ describe('standalone components, directives, and pipes', () => {
     }
 
     @Component({
-      standalone: true,
       template: '<ng-template #insert></ng-template>',
       imports: [InnerCmp],
     })
@@ -254,146 +323,138 @@ describe('standalone components, directives, and pipes', () => {
     expect(fixture.nativeElement.textContent).toBe('Inner(Service)');
   });
 
-  it('should dynamically insert a standalone component with ambient providers override in the "left / node" injector',
-     () => {
-       class Service {
-         constructor(readonly value = 'Service') {}
-       }
+  it('should dynamically insert a standalone component with ambient providers override in the "left / node" injector', () => {
+    class Service {
+      constructor(readonly value = 'Service') {}
+    }
 
-       class NodeOverrideService extends Service {
-         constructor() {
-           super('NodeOverrideService');
-         }
-       }
+    class NodeOverrideService extends Service {
+      constructor() {
+        super('NodeOverrideService');
+      }
+    }
 
-       class EnvOverrideService extends Service {
-         constructor() {
-           super('EnvOverrideService');
-         }
-       }
+    class EnvOverrideService extends Service {
+      constructor() {
+        super('EnvOverrideService');
+      }
+    }
 
-       @NgModule({providers: [Service]})
-       class Module {
-       }
+    @NgModule({providers: [Service]})
+    class Module {}
 
-       @Component({
-         standalone: true,
-         template: 'Inner({{service.value}})',
-         selector: 'inner-cmp',
-         imports: [Module],
-       })
-       class InnerCmp {
-         constructor(readonly service: Service) {}
-       }
+    @Component({
+      template: 'Inner({{service.value}})',
+      selector: 'inner-cmp',
+      imports: [Module],
+    })
+    class InnerCmp {
+      constructor(readonly service: Service) {}
+    }
 
-       @Component({
-         standalone: true,
-         template: '<ng-template #insert></ng-template>',
-         imports: [InnerCmp],
-       })
-       class AppCmp implements OnInit {
-         @ViewChild('insert', {read: ViewContainerRef, static: true}) vcRef!: ViewContainerRef;
+    @Component({
+      template: '<ng-template #insert></ng-template>',
+      imports: [InnerCmp],
+    })
+    class AppCmp implements OnInit {
+      @ViewChild('insert', {read: ViewContainerRef, static: true}) vcRef!: ViewContainerRef;
 
+      constructor(
+        readonly inj: Injector,
+        readonly envInj: EnvironmentInjector,
+      ) {}
 
-         constructor(readonly inj: Injector, readonly envInj: EnvironmentInjector) {}
+      ngOnInit(): void {
+        const lhsInj = Injector.create({
+          providers: [{provide: Service, useClass: NodeOverrideService}],
+          parent: this.inj,
+        });
 
-         ngOnInit(): void {
-           const lhsInj = Injector.create({
-             providers: [{provide: Service, useClass: NodeOverrideService}],
-             parent: this.inj,
-           });
+        const rhsInj = createEnvironmentInjector(
+          [{provide: Service, useClass: EnvOverrideService}],
+          this.envInj,
+        );
 
-           const rhsInj = createEnvironmentInjector(
-               [{provide: Service, useClass: EnvOverrideService}], this.envInj);
+        this.vcRef.createComponent(InnerCmp, {injector: lhsInj, environmentInjector: rhsInj});
+      }
+    }
 
-           this.vcRef.createComponent(InnerCmp, {injector: lhsInj, environmentInjector: rhsInj});
-         }
-       }
+    const fixture = TestBed.createComponent(AppCmp);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toBe('Inner(NodeOverrideService)');
+  });
 
-       const fixture = TestBed.createComponent(AppCmp);
-       fixture.detectChanges();
-       expect(fixture.nativeElement.textContent).toBe('Inner(NodeOverrideService)');
-     });
+  it('should consult ambient providers before environment injector when inserting a component dynamically', () => {
+    class Service {
+      constructor(readonly value = 'Service') {}
+    }
 
-  it('should consult ambient providers before environement injector when inserting a component dynamically',
-     () => {
-       class Service {
-         constructor(readonly value = 'Service') {}
-       }
+    class EnvOverrideService extends Service {
+      constructor() {
+        super('EnvOverrideService');
+      }
+    }
 
-       class EnvOverrideService extends Service {
-         constructor() {
-           super('EnvOverrideService');
-         }
-       }
+    @NgModule({providers: [Service]})
+    class Module {}
 
-       @NgModule({providers: [Service]})
-       class Module {
-       }
+    @Component({
+      template: 'Inner({{service.value}})',
+      selector: 'inner-cmp',
+      imports: [Module],
+    })
+    class InnerCmp {
+      constructor(readonly service: Service) {}
+    }
 
-       @Component({
-         standalone: true,
-         template: 'Inner({{service.value}})',
-         selector: 'inner-cmp',
-         imports: [Module],
-       })
-       class InnerCmp {
-         constructor(readonly service: Service) {}
-       }
+    @Component({
+      template: '<ng-template #insert></ng-template>',
+      imports: [InnerCmp],
+    })
+    class AppCmp implements OnInit {
+      @ViewChild('insert', {read: ViewContainerRef, static: true}) vcRef!: ViewContainerRef;
 
-       @Component({
-         standalone: true,
-         template: '<ng-template #insert></ng-template>',
-         imports: [InnerCmp],
-       })
-       class AppCmp implements OnInit {
-         @ViewChild('insert', {read: ViewContainerRef, static: true}) vcRef!: ViewContainerRef;
+      constructor(readonly envInj: EnvironmentInjector) {}
 
-         constructor(readonly envInj: EnvironmentInjector) {}
+      ngOnInit(): void {
+        const rhsInj = createEnvironmentInjector(
+          [{provide: Service, useClass: EnvOverrideService}],
+          this.envInj,
+        );
 
-         ngOnInit(): void {
-           const rhsInj = createEnvironmentInjector(
-               [{provide: Service, useClass: EnvOverrideService}], this.envInj);
+        this.vcRef.createComponent(InnerCmp, {environmentInjector: rhsInj});
+      }
+    }
 
-           this.vcRef.createComponent(InnerCmp, {environmentInjector: rhsInj});
-         }
-       }
+    const fixture = TestBed.createComponent(AppCmp);
+    fixture.detectChanges();
 
-       const fixture = TestBed.createComponent(AppCmp);
-       fixture.detectChanges();
-
-       // The Service (an ambient provider) gets injected here as the standalone injector is a child
-       // of the user-created environement injector.
-       expect(fixture.nativeElement.textContent).toBe('Inner(Service)');
-     });
+    // The Service (an ambient provider) gets injected here as the standalone injector is a child
+    // of the user-created environment injector.
+    expect(fixture.nativeElement.textContent).toBe('Inner(Service)');
+  });
 
   it('should render a recursive cycle of standalone components', () => {
     @Component({
       selector: 'cmp-a',
-      standalone: true,
       template: '<ng-template [ngIf]="false"><cmp-c></cmp-c></ng-template>A',
       imports: [forwardRef(() => StandaloneCmpC)],
     })
-    class StandaloneCmpA {
-    }
+    class StandaloneCmpA {}
 
     @Component({
       selector: 'cmp-b',
-      standalone: true,
       template: '(<cmp-a></cmp-a>)B',
       imports: [StandaloneCmpA],
     })
-    class StandaloneCmpB {
-    }
+    class StandaloneCmpB {}
 
     @Component({
       selector: 'cmp-c',
-      standalone: true,
       template: '(<cmp-b></cmp-b>)C',
       imports: [StandaloneCmpB],
     })
-    class StandaloneCmpC {
-    }
+    class StandaloneCmpC {}
 
     const fixture = TestBed.createComponent(StandaloneCmpC);
     fixture.detectChanges();
@@ -406,17 +467,14 @@ describe('standalone components, directives, and pipes', () => {
     }
 
     @NgModule({providers: [Service]})
-    class ModuleWithAService {
-    }
+    class ModuleWithAService {}
 
     @NgModule({exports: [ModuleWithAService]})
-    class ExportingModule {
-    }
+    class ExportingModule {}
     @Component({
       selector: 'standalone',
-      standalone: true,
       imports: [ExportingModule],
-      template: `({{service.value}})`
+      template: `({{service.value}})`,
     })
     class TestComponent {
       constructor(readonly service: Service) {}
@@ -428,11 +486,10 @@ describe('standalone components, directives, and pipes', () => {
   });
 
   it('should support nested arrays in @Component.imports', () => {
-    @Directive({selector: '[red]', standalone: true, host: {'[attr.red]': 'true'}})
-    class RedIdDirective {
-    }
+    @Directive({selector: '[red]', host: {'[attr.red]': 'true'}})
+    class RedIdDirective {}
 
-    @Pipe({name: 'blue', pure: true, standalone: true})
+    @Pipe({name: 'blue', pure: true})
     class BluePipe implements PipeTransform {
       transform() {
         return 'blue';
@@ -441,12 +498,10 @@ describe('standalone components, directives, and pipes', () => {
 
     @Component({
       selector: 'standalone',
-      standalone: true,
       template: `<div red>{{'' | blue}}</div>`,
       imports: [[RedIdDirective, [BluePipe]]],
     })
-    class TestComponent {
-    }
+    class TestComponent {}
 
     const fixture = TestBed.createComponent(TestComponent);
     fixture.detectChanges();
@@ -454,11 +509,10 @@ describe('standalone components, directives, and pipes', () => {
   });
 
   it('should support readonly arrays in @Component.imports', () => {
-    @Directive({selector: '[red]', standalone: true, host: {'[attr.red]': 'true'}})
-    class RedIdDirective {
-    }
+    @Directive({selector: '[red]', host: {'[attr.red]': 'true'}})
+    class RedIdDirective {}
 
-    @Pipe({name: 'blue', pure: true, standalone: true})
+    @Pipe({name: 'blue', pure: true})
     class BluePipe implements PipeTransform {
       transform() {
         return 'blue';
@@ -469,12 +523,10 @@ describe('standalone components, directives, and pipes', () => {
 
     @Component({
       selector: 'standalone',
-      standalone: true,
       template: `<div red>{{'' | blue}}</div>`,
       imports: [DirAndPipe],
     })
-    class TestComponent {
-    }
+    class TestComponent {}
 
     const fixture = TestBed.createComponent(TestComponent);
     fixture.detectChanges();
@@ -482,121 +534,115 @@ describe('standalone components, directives, and pipes', () => {
   });
 
   it('should deduplicate declarations', () => {
-    @Component({selector: 'test-red', standalone: true, template: 'red(<ng-content></ng-content>)'})
-    class RedComponent {
-    }
+    @Component({selector: 'test-red', template: 'red(<ng-content></ng-content>)'})
+    class RedComponent {}
 
-    @Component({selector: 'test-blue', template: 'blue(<ng-content></ng-content>)'})
-    class BlueComponent {
-    }
+    @Component({
+      selector: 'test-blue',
+      standalone: false,
+      template: 'blue(<ng-content></ng-content>)',
+    })
+    class BlueComponent {}
 
     @NgModule({declarations: [BlueComponent], exports: [BlueComponent]})
-    class BlueModule {
-    }
+    class BlueModule {}
 
     @NgModule({exports: [BlueModule]})
-    class BlueAModule {
-    }
+    class BlueAModule {}
 
     @NgModule({exports: [BlueModule]})
-    class BlueBModule {
-    }
+    class BlueBModule {}
 
     @Component({
       selector: 'standalone',
-      standalone: true,
       template: `<test-red><test-blue>orange</test-blue></test-red>`,
       imports: [RedComponent, RedComponent, BlueAModule, BlueBModule],
     })
-    class TestComponent {
-    }
+    class TestComponent {}
 
     const fixture = TestBed.createComponent(TestComponent);
     fixture.detectChanges();
-    expect(fixture.nativeElement.innerHTML)
-        .toBe('<test-red>red(<test-blue>blue(orange)</test-blue>)</test-red>');
+    expect(fixture.nativeElement.innerHTML).toBe(
+      '<test-red>red(<test-blue>blue(orange)</test-blue>)</test-red>',
+    );
   });
 
   it('should error when forwardRef does not resolve to a truthy value', () => {
     @Component({
       selector: 'test',
-      standalone: true,
       imports: [forwardRef(() => null)],
       template: '',
     })
-    class TestComponent {
-    }
+    class TestComponent {}
     expect(() => {
       TestBed.createComponent(TestComponent);
-    })
-        .toThrowError(
-            'Expected forwardRef function, imported from "TestComponent", to return a standalone entity or NgModule but got "null".');
+    }).toThrowError(
+      'Expected forwardRef function, imported from "TestComponent", to return a standalone entity or NgModule but got "null".',
+    );
   });
 
   it('should error when a non-standalone component is imported', () => {
     @Component({
       selector: 'not-a-standalone',
       template: '',
+      standalone: false,
     })
-    class NonStandaloneCmp {
-    }
+    class NonStandaloneCmp {}
 
     @Component({
       selector: 'standalone',
-      standalone: true,
       template: '',
       imports: [NonStandaloneCmp],
     })
-    class StandaloneCmp {
-    }
+    class StandaloneCmp {}
 
     expect(() => {
       TestBed.createComponent(StandaloneCmp);
-    })
-        .toThrowError(
-            'The "NonStandaloneCmp" component, imported from "StandaloneCmp", is not standalone. Did you forget to add the standalone: true flag?');
+    }).toThrowError(
+      'The "NonStandaloneCmp" component, imported from "StandaloneCmp", is not standalone. Did you forget to add the standalone: true flag?',
+    );
   });
 
   it('should error when a non-standalone directive is imported', () => {
-    @Directive({selector: '[not-a-standalone]'})
-    class NonStandaloneDirective {
-    }
+    @Directive({
+      selector: '[not-a-standalone]',
+      standalone: false,
+    })
+    class NonStandaloneDirective {}
 
     @Component({
       selector: 'standalone',
-      standalone: true,
       template: '',
       imports: [NonStandaloneDirective],
     })
-    class StandaloneCmp {
-    }
+    class StandaloneCmp {}
 
     expect(() => {
       TestBed.createComponent(StandaloneCmp);
-    })
-        .toThrowError(
-            'The "NonStandaloneDirective" directive, imported from "StandaloneCmp", is not standalone. Did you forget to add the standalone: true flag?');
+    }).toThrowError(
+      'The "NonStandaloneDirective" directive, imported from "StandaloneCmp", is not standalone. Did you forget to add the standalone: true flag?',
+    );
   });
 
   it('should error when a non-standalone pipe is imported', () => {
-    @Pipe({name: 'not-a-standalone'})
-    class NonStandalonePipe {
-    }
+    @Pipe({
+      name: 'not-a-standalone',
+      standalone: false,
+    })
+    class NonStandalonePipe {}
 
     @Component({
       selector: 'standalone',
-      standalone: true,
       template: '',
       imports: [NonStandalonePipe],
     })
-    class StandaloneCmp {
-    }
+    class StandaloneCmp {}
 
     expect(() => {
       TestBed.createComponent(StandaloneCmp);
-    })
-        .toThrowError(
-            'The "NonStandalonePipe" pipe, imported from "StandaloneCmp", is not standalone. Did you forget to add the standalone: true flag?');
+    }).toThrowError(
+      'The "NonStandalonePipe" pipe, imported from "StandaloneCmp", is not standalone. Did you forget to add the standalone: true flag?',
+    );
   });
 
   it('should error when an unknown type is imported', () => {
@@ -604,24 +650,21 @@ describe('standalone components, directives, and pipes', () => {
 
     @Component({
       selector: 'standalone',
-      standalone: true,
       template: '',
       imports: [SthElse],
     })
-    class StandaloneCmp {
-    }
+    class StandaloneCmp {}
 
     expect(() => {
       TestBed.createComponent(StandaloneCmp);
-    })
-        .toThrowError(
-            'The "SthElse" type, imported from "StandaloneCmp", must be a standalone component / directive / pipe or an NgModule. Did you forget to add the required @Component / @Directive / @Pipe or @NgModule annotation?');
+    }).toThrowError(
+      'The "SthElse" type, imported from "StandaloneCmp", must be a standalone component / directive / pipe or an NgModule. Did you forget to add the required @Component / @Directive / @Pipe or @NgModule annotation?',
+    );
   });
 
   it('should error when a module with providers is imported', () => {
     @NgModule()
-    class OtherModule {
-    }
+    class OtherModule {}
 
     @NgModule()
     class LibModule {
@@ -631,35 +674,30 @@ describe('standalone components, directives, and pipes', () => {
     }
 
     @Component({
-      standalone: true,
       template: '',
       // we need to import a module with a provider in a nested array since module with providers
       // are disallowed on the type level
       imports: [[LibModule.forComponent()]],
     })
-    class StandaloneCmp {
-    }
+    class StandaloneCmp {}
 
     expect(() => {
       TestBed.createComponent(StandaloneCmp);
-    })
-        .toThrowError(
-            'A module with providers was imported from "StandaloneCmp". Modules with providers are not supported in standalone components imports.');
+    }).toThrowError(
+      'A module with providers was imported from "StandaloneCmp". Modules with providers are not supported in standalone components imports.',
+    );
   });
 
   it('should support forwardRef imports', () => {
     @Component({
       selector: 'test',
-      standalone: true,
       imports: [forwardRef(() => StandaloneComponent)],
-      template: `(<other-standalone></other-standalone>)`
+      template: `(<other-standalone></other-standalone>)`,
     })
-    class TestComponent {
-    }
+    class TestComponent {}
 
-    @Component({selector: 'other-standalone', standalone: true, template: `standalone component`})
-    class StandaloneComponent {
-    }
+    @Component({selector: 'other-standalone', template: `standalone component`})
+    class StandaloneComponent {}
 
     const fixture = TestBed.createComponent(TestComponent);
     fixture.detectChanges();
@@ -669,12 +707,10 @@ describe('standalone components, directives, and pipes', () => {
   describe('schemas', () => {
     it('should allow schemas in standalone component', () => {
       @Component({
-        standalone: true,
         template: '<maybe-custom-elm></maybe-custom-elm>',
-        schemas: [NO_ERRORS_SCHEMA]
+        schemas: [NO_ERRORS_SCHEMA],
       })
-      class AppCmp {
-      }
+      class AppCmp {}
 
       const fixture = TestBed.createComponent(AppCmp);
       fixture.detectChanges();
@@ -682,37 +718,35 @@ describe('standalone components, directives, and pipes', () => {
     });
 
     it('should error when schemas are specified for a non-standalone component', () => {
-      @Component({template: '', schemas: [NO_ERRORS_SCHEMA]})
-      class AppCmp {
-      }
+      @Component({
+        template: '',
+        schemas: [NO_ERRORS_SCHEMA],
+        standalone: false,
+      })
+      class AppCmp {}
 
       expect(() => {
         TestBed.createComponent(AppCmp);
-      })
-          .toThrowError(
-              `The 'schemas' was specified for the AppCmp but is only valid on a component that is standalone.`);
+      }).toThrowError(
+        `The 'schemas' was specified for the AppCmp but is only valid on a component that is standalone.`,
+      );
     });
   });
 
   describe('unknown template elements', () => {
     const unknownElErrorRegex = (tag: string) => {
-      const prefix =
-          `'${tag}' is not a known element \\(used in the 'AppCmp' component template\\):`;
-      const message1 = `1. If '${
-          tag}' is an Angular component, then verify that it is included in the '@Component.imports' of this component.`;
-      const message2 = `2. If '${
-          tag}' is a Web Component then add 'CUSTOM_ELEMENTS_SCHEMA' to the '@Component.schemas' of this component to suppress this message.`;
-      return new RegExp(`${prefix}\s*\n\s*${message1}\s*\n\s*${message2}`);
+      const prefix = `'${tag}' is not a known element \\(used in the 'AppCmp' component template\\):`;
+      const message1 = `1. If '${tag}' is an Angular component, then verify that it is included in the '@Component.imports' of this component.`;
+      const message2 = `2. If '${tag}' is a Web Component then add 'CUSTOM_ELEMENTS_SCHEMA' to the '@Component.schemas' of this component to suppress this message.`;
+      return new RegExp(`${prefix}s*\ns*${message1}s*\ns*${message2}`);
     };
 
     it('should warn the user when an unknown element is present', () => {
       const spy = spyOn(console, 'error');
       @Component({
-        standalone: true,
         template: '<unknown-tag></unknown-tag>',
       })
-      class AppCmp {
-      }
+      class AppCmp {}
 
       TestBed.createComponent(AppCmp);
 
@@ -723,11 +757,9 @@ describe('standalone components, directives, and pipes', () => {
     it('should warn the user when multiple unknown elements are present', () => {
       const spy = spyOn(console, 'error');
       @Component({
-        standalone: true,
         template: '<unknown-tag-A></unknown-tag-A><unknown-tag-B></unknown-tag-B>',
       })
-      class AppCmp {
-      }
+      class AppCmp {}
 
       TestBed.createComponent(AppCmp);
 
@@ -741,34 +773,29 @@ describe('standalone components, directives, and pipes', () => {
     it('should not warn the user when an unknown element is present inside an ng-template', () => {
       const spy = spyOn(console, 'error');
       @Component({
-        standalone: true,
         template: '<ng-template><unknown-tag></unknown-tag><ng-template>',
       })
-      class AppCmp {
-      }
+      class AppCmp {}
 
       TestBed.createComponent(AppCmp);
 
       expect(spy).not.toHaveBeenCalled();
     });
 
-    it('should warn the user when an unknown element is present in an instantiated embedded view',
-       () => {
-         const spy = spyOn(console, 'error');
-         @Component({
-           standalone: true,
-           template: '<ng-template [ngIf]="true"><unknown-tag></unknown-tag><ng-template>',
-           imports: [CommonModule],
-         })
-         class AppCmp {
-         }
+    it('should warn the user when an unknown element is present in an instantiated embedded view', () => {
+      const spy = spyOn(console, 'error');
+      @Component({
+        template: '<ng-template [ngIf]="true"><unknown-tag></unknown-tag><ng-template>',
+        imports: [CommonModule],
+      })
+      class AppCmp {}
 
-         const fixture = TestBed.createComponent(AppCmp);
-         fixture.detectChanges();
+      const fixture = TestBed.createComponent(AppCmp);
+      fixture.detectChanges();
 
-         const errorRegex = unknownElErrorRegex('unknown-tag');
-         expect(spy).toHaveBeenCalledOnceWith(jasmine.stringMatching(errorRegex));
-       });
+      const errorRegex = unknownElErrorRegex('unknown-tag');
+      expect(spy).toHaveBeenCalledOnceWith(jasmine.stringMatching(errorRegex));
+    });
   });
 
   /*
@@ -785,14 +812,17 @@ describe('standalone components, directives, and pipes', () => {
    */
   describe('inheritance', () => {
     it('should allow extending a regular component and turn it into a standalone one', () => {
-      @Component({selector: 'regular', template: 'regular: {{in}}'})
+      @Component({
+        selector: 'regular',
+        template: 'regular: {{in}}',
+        standalone: false,
+      })
       class RegularCmp {
-        @Input() in : string|undefined;
+        @Input() in: string | undefined;
       }
 
-      @Component({selector: 'standalone', template: 'standalone: {{in}}', standalone: true})
-      class StandaloneCmp extends RegularCmp {
-      }
+      @Component({selector: 'standalone', template: 'standalone: {{in}}'})
+      class StandaloneCmp extends RegularCmp {}
 
       const fixture = TestBed.createComponent(StandaloneCmp);
       fixture.componentInstance.in = 'input value';
@@ -801,14 +831,17 @@ describe('standalone components, directives, and pipes', () => {
     });
 
     it('should allow extending a regular component and turn it into a standalone one', () => {
-      @Component({selector: 'standalone', template: 'standalone: {{in}}', standalone: true})
+      @Component({selector: 'standalone', template: 'standalone: {{in}}'})
       class StandaloneCmp {
-        @Input() in : string|undefined;
+        @Input() in: string | undefined;
       }
 
-      @Component({selector: 'regular', template: 'regular: {{in}}'})
-      class RegularCmp extends StandaloneCmp {
-      }
+      @Component({
+        selector: 'regular',
+        template: 'regular: {{in}}',
+        standalone: false,
+      })
+      class RegularCmp extends StandaloneCmp {}
 
       const fixture = TestBed.createComponent(RegularCmp);
       fixture.componentInstance.in = 'input value';
@@ -820,24 +853,23 @@ describe('standalone components, directives, and pipes', () => {
       @Component({
         selector: 'inner',
         template: 'inner',
-        standalone: true,
       })
-      class InnerCmp {
-      }
+      class InnerCmp {}
 
       @Component({
         selector: 'standalone',
-        standalone: true,
         template: 'standalone: {{in}}; (<inner></inner>)',
-        imports: [InnerCmp]
+        imports: [InnerCmp],
       })
       class StandaloneCmp {
-        @Input() in : string|undefined;
+        @Input() in: string | undefined;
       }
 
-      @Component({selector: 'regular'})
-      class RegularCmp extends StandaloneCmp {
-      }
+      @Component({
+        selector: 'regular',
+        standalone: false,
+      })
+      class RegularCmp extends StandaloneCmp {}
 
       const fixture = TestBed.createComponent(RegularCmp);
       fixture.componentInstance.in = 'input value';
@@ -850,49 +882,50 @@ describe('standalone components, directives, and pipes', () => {
 
   describe('isStandalone()', () => {
     it('should return `true` if component is standalone', () => {
-      @Component({selector: 'standalone-cmp', standalone: true})
-      class StandaloneCmp {
-      }
+      @Component({selector: 'standalone-cmp'})
+      class StandaloneCmp {}
+
+      expect(isStandalone(StandaloneCmp)).toBeTrue();
+    });
+
+    it('should return `true` if component is standalone (with `standalone:true`)', () => {
+      @Component({selector: 'standalone-cmp'})
+      class StandaloneCmp {}
 
       expect(isStandalone(StandaloneCmp)).toBeTrue();
     });
 
     it('should return `false` if component is not standalone', () => {
       @Component({selector: 'standalone-cmp', standalone: false})
-      class StandaloneCmp {
-      }
+      class StandaloneCmp {}
 
       expect(isStandalone(StandaloneCmp)).toBeFalse();
     });
 
     it('should return `true` if directive is standalone', () => {
-      @Directive({selector: '[standaloneDir]', standalone: true})
-      class StandAloneDirective {
-      }
+      @Directive({selector: '[standaloneDir]'})
+      class StandAloneDirective {}
 
       expect(isStandalone(StandAloneDirective)).toBeTrue();
     });
 
     it('should return `false` if directive is standalone', () => {
       @Directive({selector: '[standaloneDir]', standalone: false})
-      class StandAloneDirective {
-      }
+      class StandAloneDirective {}
 
       expect(isStandalone(StandAloneDirective)).toBeFalse();
     });
 
     it('should return `true` if pipe is standalone', () => {
-      @Pipe({name: 'standalonePipe', standalone: true})
-      class StandAlonePipe {
-      }
+      @Pipe({name: 'standalonePipe'})
+      class StandAlonePipe {}
 
       expect(isStandalone(StandAlonePipe)).toBeTrue();
     });
 
     it('should return `false` if pipe is standalone', () => {
       @Pipe({name: 'standalonePipe', standalone: false})
-      class StandAlonePipe {
-      }
+      class StandAlonePipe {}
 
       expect(isStandalone(StandAlonePipe)).toBeFalse();
     });
@@ -905,8 +938,7 @@ describe('standalone components, directives, and pipes', () => {
 
     it('should return `false` if the class is an NgModule', () => {
       @NgModule({})
-      class Module {
-      }
+      class Module {}
 
       expect(isStandalone(Module)).toBeFalse();
     });
@@ -914,30 +946,24 @@ describe('standalone components, directives, and pipes', () => {
     it('should render a recursive cycle of standalone components', () => {
       @Component({
         selector: 'cmp-a',
-        standalone: true,
         template: '<ng-template [ngIf]="false"><cmp-c></cmp-c></ng-template>A',
         imports: [forwardRef(() => StandaloneCmpC)],
       })
-      class StandaloneCmpA {
-      }
+      class StandaloneCmpA {}
 
       @Component({
         selector: 'cmp-b',
-        standalone: true,
         template: '(<cmp-a></cmp-a>)B',
         imports: [StandaloneCmpA],
       })
-      class StandaloneCmpB {
-      }
+      class StandaloneCmpB {}
 
       @Component({
         selector: 'cmp-c',
-        standalone: true,
         template: '(<cmp-b></cmp-b>)C',
         imports: [StandaloneCmpB],
       })
-      class StandaloneCmpC {
-      }
+      class StandaloneCmpC {}
 
       TestBed.configureTestingModule({imports: [StandaloneCmpC]});
       const fixture = TestBed.createComponent(StandaloneCmpC);
