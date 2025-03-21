@@ -3,10 +3,8 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
-
-import '@angular/core/test/bundling/util/src/reflect_metadata';
 
 import {CommonModule} from '@angular/common';
 import {Component, Injectable, NgModule} from '@angular/core';
@@ -23,7 +21,10 @@ class Todo {
     this._title = value.trim();
   }
 
-  constructor(title: string, public completed: boolean = false) {
+  constructor(
+    title: string,
+    public completed: boolean = false,
+  ) {
     this.editing = false;
     this.title = title;
   }
@@ -48,7 +49,7 @@ class TodoStore {
   }
 
   setAllTo(completed: boolean) {
-    this.todos.forEach((t: Todo) => t.completed = completed);
+    this.todos.forEach((t: Todo) => (t.completed = completed));
   }
 
   removeCompleted() {
@@ -79,20 +80,22 @@ class TodoStore {
 @Component({
   selector: 'todo-app',
   // TODO(misko): make this work with `[(ngModel)]`
-  styles: [`
+  styles: [
+    `
     .todo-list li.completed label {
       color: #d9d9d9;
       text-decoration: line-through;
       font-weight:bold;
     }
-  `],
+  `,
+  ],
   template: `
   <section class="todoapp">
     <header class="header">
       <h1>todos</h1>
       <input class="new-todo" placeholder="What needs to be done?" autofocus=""
              [value]="newTodoText"
-             (keyup)="$event.code == 'Enter' ? addTodo() : newTodoText = $event.target.value">
+             (keyup)="$event.code == 'Enter' ? addTodo() : newTodoText = $any($event.target).value">
     </header>
     <section *ngIf="todoStore.todos.length > 0" class="main">
       <input *ngIf="todoStore.todos.length"
@@ -114,7 +117,7 @@ class TodoStore {
                  class="edit" #editedtodo
                  [value]="todo.title"
                  (blur)="stopEditing(todo, editedtodo.value)"
-                 (keyup)="todo.title = $event.target.value"
+                 (keyup)="todo.title = $any($event.target).value"
                  (keyup)="$event.code == 'Enter' && updateEditingTodo(todo, editedtodo.value)"
                  (keyup)="$event.code == 'Escape' && cancelEditingTodo(todo)">
         </li>
@@ -133,8 +136,7 @@ class TodoStore {
     </footer>
   </section>
   `,
-  // TODO(misko): switch over to OnPush
-  // changeDetection: ChangeDetectionStrategy.OnPush
+  standalone: false,
 })
 class ToDoAppComponent {
   newTodoText = '';

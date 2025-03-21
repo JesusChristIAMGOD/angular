@@ -18,6 +18,7 @@ _STYLE_LABELS = [
     sass_binary(
         name = label,
         src = src,
+        deps = ["//devtools/projects/ng-devtools/src/styles:theme"],
     )
     for label, src in zip(_STYLE_LABELS, _STYLE_SRCS)
 ]
@@ -27,7 +28,6 @@ ng_module(
     srcs = [
         "component-metadata.component.ts",
         "property-tab.component.ts",
-        "property-tab.module.ts",
         "property-tab-header.component.ts",
     ],
     angular_assets = [
