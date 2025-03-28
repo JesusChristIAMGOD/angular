@@ -3,42 +3,43 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {ɵProfilerEvent} from '@angular/core';
 
 import {getDirectiveHostElement} from '../../directive-forest';
+import {ngDebugClient} from '../../ng-debug-api/ng-debug-api';
 import {runOutsideAngular} from '../../utils';
 import {IdentityTracker, NodeArray} from '../identity-tracker';
 
 import {getLifeCycleName, Hooks, Profiler} from './shared';
 
-type ProfilerCallback = (event: ɵProfilerEvent, instanceOrLView: {}, hookOrListener: any) => void;
+type ProfilerCallback = (event: ɵProfilerEvent, instanceOrLView: {} | null, eventFn: any) => void;
 
 /** Implementation of Profiler that utilizes framework APIs fire profiler hooks. */
 export class NgProfiler extends Profiler {
   private _tracker = IdentityTracker.getInstance();
   private _callbacks: ProfilerCallback[] = [];
-  private _lastDirectiveInstance: {}|null = null;
+  private _lastDirectiveInstance: {} | null = null;
 
   constructor(config: Partial<Hooks> = {}) {
     super(config);
-    this._setProfilerCallback((event: ɵProfilerEvent, instanceOrLView: {}, hookOrListener: any) => {
+    this._setProfilerCallback((event: ɵProfilerEvent, instanceOrLView: {} | null, eventFn: any) => {
       if (this[event] === undefined) {
         return;
       }
 
-      this[event](instanceOrLView, hookOrListener);
+      this[event](instanceOrLView, eventFn);
     });
     this._initialize();
   }
 
   private _initialize(): void {
-    const ng = (window as any).ng;
-    ng.ɵsetProfiler(
-        (event: ɵProfilerEvent, instanceOrLView: {}, hookOrListener: any) =>
-            this._callbacks.forEach((cb) => cb(event, instanceOrLView, hookOrListener)));
+    ngDebugClient().ɵsetProfiler!(
+      (event: ɵProfilerEvent, instanceOrLView: {} | null = null, eventFn: any) =>
+        this._callbacks.forEach((cb) => cb(event, instanceOrLView, eventFn)),
+    );
   }
 
   private _setProfilerCallback(callback: ProfilerCallback): void {
@@ -67,17 +68,107 @@ export class NgProfiler extends Profiler {
     });
   }
 
-  [ɵProfilerEvent.TemplateCreateStart](_directive: any, _hookOrListener: any): void {
+  [ɵProfilerEvent.BootstrapApplicationStart](_directive: any, _eventFn: any): void {
     // todo: implement
     return;
   }
 
-  [ɵProfilerEvent.TemplateCreateEnd](_directive: any, _hookOrListener: any): void {
+  [ɵProfilerEvent.BootstrapApplicationEnd](_directive: any, _eventFn: any): void {
     // todo: implement
     return;
   }
 
-  [ɵProfilerEvent.TemplateUpdateStart](context: any, _hookOrListener: any): void {
+  [ɵProfilerEvent.BootstrapComponentStart](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.BootstrapComponentEnd](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.ChangeDetectionStart](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.ChangeDetectionEnd](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.ChangeDetectionSyncStart](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.ChangeDetectionSyncEnd](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.AfterRenderHooksStart](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.AfterRenderHooksEnd](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.ComponentStart](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.ComponentEnd](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.DeferBlockStateStart](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.DeferBlockStateEnd](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.DynamicComponentStart](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.DynamicComponentEnd](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.HostBindingsUpdateStart](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.HostBindingsUpdateEnd](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.TemplateCreateStart](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.TemplateCreateEnd](_directive: any, _eventFn: any): void {
+    // todo: implement
+    return;
+  }
+
+  [ɵProfilerEvent.TemplateUpdateStart](context: any, _eventFn: any): void {
     if (!this._inChangeDetection) {
       this._inChangeDetection = true;
       runOutsideAngular(() => {
@@ -104,12 +195,14 @@ export class NgProfiler extends Profiler {
     }
 
     this._onChangeDetectionStart(
-        this._lastDirectiveInstance, getDirectiveHostElement(this._lastDirectiveInstance),
-        this._tracker.getDirectiveId(this._lastDirectiveInstance),
-        this._tracker.getDirectivePosition(this._lastDirectiveInstance));
+      this._lastDirectiveInstance,
+      getDirectiveHostElement(this._lastDirectiveInstance),
+      this._tracker.getDirectiveId(this._lastDirectiveInstance),
+      this._tracker.getDirectivePosition(this._lastDirectiveInstance),
+    );
   }
 
-  [ɵProfilerEvent.TemplateUpdateEnd](context: any, _hookOrListener: any): void {
+  [ɵProfilerEvent.TemplateUpdateEnd](context: any, _eventFn: any): void {
     const position = this._tracker.getDirectivePosition(context);
     const id = this._tracker.getDirectiveId(context);
 
@@ -119,9 +212,11 @@ export class NgProfiler extends Profiler {
     }
 
     this._onChangeDetectionEnd(
-        this._lastDirectiveInstance, getDirectiveHostElement(this._lastDirectiveInstance),
-        this._tracker.getDirectiveId(this._lastDirectiveInstance),
-        this._tracker.getDirectivePosition(this._lastDirectiveInstance));
+      this._lastDirectiveInstance,
+      getDirectiveHostElement(this._lastDirectiveInstance),
+      this._tracker.getDirectiveId(this._lastDirectiveInstance),
+      this._tracker.getDirectivePosition(this._lastDirectiveInstance),
+    );
   }
 
   [ɵProfilerEvent.LifecycleHookStart](directive: any, hook: any): void {

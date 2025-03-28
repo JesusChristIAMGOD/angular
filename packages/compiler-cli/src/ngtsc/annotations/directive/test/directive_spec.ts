@@ -3,26 +3,52 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
-import {CssSelector, DirectiveMeta as T2DirectiveMeta, parseTemplate, R3TargetBinder, SelectorMatcher, TmplAstElement} from '@angular/compiler';
+import {
+  CssSelector,
+  DirectiveMeta as T2DirectiveMeta,
+  parseTemplate,
+  R3TargetBinder,
+  SelectorMatcher,
+  TmplAstElement,
+} from '@angular/compiler';
 import ts from 'typescript';
 
 import {absoluteFrom} from '../../../file_system';
 import {runInEachFileSystem} from '../../../file_system/testing';
-import {ReferenceEmitter} from '../../../imports';
-import {CompoundMetadataReader, DtsMetadataReader, LocalMetadataRegistry} from '../../../metadata';
+import {ImportedSymbolsTracker, ReferenceEmitter} from '../../../imports';
+import {
+  CompoundMetadataReader,
+  DtsMetadataReader,
+  HostDirectivesResolver,
+  LocalMetadataRegistry,
+  ResourceRegistry,
+} from '../../../metadata';
 import {PartialEvaluator} from '../../../partial_evaluator';
 import {NOOP_PERF_RECORDER} from '../../../perf';
-import {ClassDeclaration, isNamedClassDeclaration, TypeScriptReflectionHost} from '../../../reflection';
-import {LocalModuleScopeRegistry, MetadataDtsModuleScopeResolver} from '../../../scope';
+import {
+  ClassDeclaration,
+  isNamedClassDeclaration,
+  TypeScriptReflectionHost,
+} from '../../../reflection';
+import {
+  LocalModuleScopeRegistry,
+  MetadataDtsModuleScopeResolver,
+  TypeCheckScopeRegistry,
+} from '../../../scope';
 import {getDeclaration, makeProgram} from '../../../testing';
-import {InjectableClassRegistry, NoopReferencesRegistry} from '../../common';
+import {CompilationMode} from '../../../transform';
+import {
+  InjectableClassRegistry,
+  JitDeclarationRegistry,
+  NoopReferencesRegistry,
+} from '../../common';
 import {DirectiveDecoratorHandler} from '../index';
 
 runInEachFileSystem(() => {
   let _: typeof absoluteFrom;
-  beforeEach(() => _ = absoluteFrom);
+  beforeEach(() => (_ = absoluteFrom));
 
   describe('DirectiveDecoratorHandler', () => {
     it('should use the `ReflectionHost` to detect class inheritance', () => {
@@ -109,6 +135,8 @@ runInEachFileSystem(() => {
         selector: '[dir]',
         isStructural: false,
         animationTriggerNames: null,
+        ngContentSelectors: null,
+        preserveWhitespaces: false,
       };
       matcher.addSelectables(CssSelector.parse('[dir]'), [dirMeta]);
 
@@ -168,16 +196,48 @@ runInEachFileSystem(() => {
     const refEmitter = new ReferenceEmitter([]);
     const referenceRegistry = new NoopReferencesRegistry();
     const scopeRegistry = new LocalModuleScopeRegistry(
-        metaReader, new CompoundMetadataReader([metaReader, dtsReader]),
-        new MetadataDtsModuleScopeResolver(dtsReader, null), refEmitter, null);
+      metaReader,
+      new CompoundMetadataReader([metaReader, dtsReader]),
+      new MetadataDtsModuleScopeResolver(dtsReader, null),
+      refEmitter,
+      null,
+    );
     const injectableRegistry = new InjectableClassRegistry(reflectionHost, /* isCore */ false);
+    const importTracker = new ImportedSymbolsTracker();
+    const jitDeclarationRegistry = new JitDeclarationRegistry();
+    const resourceRegistry = new ResourceRegistry();
+    const hostDirectivesResolver = new HostDirectivesResolver(metaReader);
+    const typeCheckScopeRegistry = new TypeCheckScopeRegistry(
+      scopeRegistry,
+      metaReader,
+      hostDirectivesResolver,
+    );
+
     const handler = new DirectiveDecoratorHandler(
-        reflectionHost, evaluator, scopeRegistry, scopeRegistry, metaReader, injectableRegistry,
-        refEmitter, referenceRegistry,
-        /*isCore*/ false,
-        /*strictCtorDeps*/ false,
-        /*semanticDepGraphUpdater*/ null,
-        /*annotateForClosureCompiler*/ false, NOOP_PERF_RECORDER);
+      reflectionHost,
+      evaluator,
+      scopeRegistry,
+      scopeRegistry,
+      metaReader,
+      injectableRegistry,
+      refEmitter,
+      referenceRegistry,
+      /*isCore*/ false,
+      /*strictCtorDeps*/ false,
+      /*semanticDepGraphUpdater*/ null,
+      /*annotateForClosureCompiler*/ false,
+      NOOP_PERF_RECORDER,
+      importTracker,
+      /*includeClassMetadata*/ true,
+      typeCheckScopeRegistry,
+      /*compilationMode */ CompilationMode.FULL,
+      jitDeclarationRegistry,
+      resourceRegistry,
+      /* strictStandalone */ false,
+      /* implicitStandaloneValue */ true,
+      /* usePoisonedData */ false,
+      /* typeCheckHostBindings */ true,
+    );
 
     const DirNode = getDeclaration(program, _('/entry.ts'), dirName, isNamedClassDeclaration);
 

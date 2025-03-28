@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {ConstantPool, Expression, Statement, Type} from '@angular/compiler';
@@ -16,6 +16,7 @@ import {ClassDeclaration, Decorator, ReflectionHost} from '../../reflection';
 import {ImportManager} from '../../translator';
 import {TypeCheckContext} from '../../typecheck/api';
 import {ExtendedTemplateChecker} from '../../typecheck/extended/api';
+import {TemplateSemanticsChecker} from '../../typecheck/template_semantics/api/api';
 import {Xi18nContext} from '../../xi18n';
 
 /**
@@ -63,28 +64,6 @@ export enum HandlerPrecedence {
 }
 
 /**
- * A set of options which can be passed to a `DecoratorHandler` by a consumer, to tailor the output
- * of compilation beyond the decorators themselves.
- */
-export enum HandlerFlags {
-  /**
-   * No flags set.
-   */
-  NONE = 0x0,
-
-  /**
-   * Indicates that this decorator is fully inherited from its parent at runtime. In addition to
-   * normally inherited aspects such as inputs and queries, full inheritance applies to every aspect
-   * of the component or directive, such as the template function itself.
-   *
-   * Its primary effect is to cause the `CopyDefinitionFeature` to be applied to the definition
-   * being compiled. See that class for more information.
-   */
-  FULL_INHERITANCE = 0x00000001,
-}
-
-
-/**
  * Provides the interface between a decorator compiler from @angular/compiler and the Typescript
  * compiler/transform.
  *
@@ -96,7 +75,7 @@ export enum HandlerFlags {
  * @param `A` The type of analysis metadata produced by `analyze`.
  * @param `R` The type of resolution metadata produced by `resolve`.
  */
-export interface DecoratorHandler<D, A, S extends SemanticSymbol|null, R> {
+export interface DecoratorHandler<D, A, S extends SemanticSymbol | null, R> {
   readonly name: string;
 
   /**
@@ -111,8 +90,7 @@ export interface DecoratorHandler<D, A, S extends SemanticSymbol|null, R> {
    * Scan a set of reflected decorators and determine if this handler is responsible for compilation
    * of one of them.
    */
-  detect(node: ClassDeclaration, decorators: Decorator[]|null): DetectResult<D>|undefined;
-
+  detect(node: ClassDeclaration, decorators: Decorator[] | null): DetectResult<D> | undefined;
 
   /**
    * Asynchronously perform pre-analysis on the decorator/class combination.
@@ -120,7 +98,7 @@ export interface DecoratorHandler<D, A, S extends SemanticSymbol|null, R> {
    * `preanalyze` is optional and is not guaranteed to be called through all compilation flows. It
    * will only be called if asynchronicity is supported in the CompilerHost.
    */
-  preanalyze?(node: ClassDeclaration, metadata: Readonly<D>): Promise<void>|undefined;
+  preanalyze?(node: ClassDeclaration, metadata: Readonly<D>): Promise<void> | undefined;
 
   /**
    * Perform analysis on the decorator/class combination, extracting information from the class
@@ -134,8 +112,7 @@ export interface DecoratorHandler<D, A, S extends SemanticSymbol|null, R> {
    * builds. Any side effects required for compilation (e.g. registration of metadata) should happen
    * in the `register` phase, which is guaranteed to run even for incremental builds.
    */
-  analyze(node: ClassDeclaration, metadata: Readonly<D>, handlerFlags?: HandlerFlags):
-      AnalysisOutput<A>;
+  analyze(node: ClassDeclaration, metadata: Readonly<D>): AnalysisOutput<A>;
 
   /**
    * React to a change in a resource file by updating the `analysis` or `resolution`, under the
@@ -171,9 +148,12 @@ export interface DecoratorHandler<D, A, S extends SemanticSymbol|null, R> {
    * `IndexingContext`, which stores information about components discovered in the
    * program.
    */
-  index?
-      (context: IndexingContext, node: ClassDeclaration, analysis: Readonly<A>,
-       resolution: Readonly<R>): void;
+  index?(
+    context: IndexingContext,
+    node: ClassDeclaration,
+    analysis: Readonly<A>,
+    resolution: Readonly<R>,
+  ): void;
 
   /**
    * Perform resolution on the given decorator along with the result of analysis.
@@ -190,24 +170,36 @@ export interface DecoratorHandler<D, A, S extends SemanticSymbol|null, R> {
    */
   xi18n?(bundle: Xi18nContext, node: ClassDeclaration, analysis: Readonly<A>): void;
 
-  typeCheck?
-      (ctx: TypeCheckContext, node: ClassDeclaration, analysis: Readonly<A>,
-       resolution: Readonly<R>): void;
+  typeCheck?(
+    ctx: TypeCheckContext,
+    node: ClassDeclaration,
+    analysis: Readonly<A>,
+    resolution: Readonly<R>,
+  ): void;
 
-  extendedTemplateCheck?
-      (component: ts.ClassDeclaration, extendedTemplateChecker: ExtendedTemplateChecker):
-          ts.Diagnostic[];
+  extendedTemplateCheck?(
+    component: ts.ClassDeclaration,
+    extendedTemplateChecker: ExtendedTemplateChecker,
+  ): ts.Diagnostic[];
+
+  templateSemanticsCheck?(
+    component: ts.ClassDeclaration,
+    templateSemanticsChecker: TemplateSemanticsChecker,
+  ): ts.Diagnostic[];
 
   /**
    * Generate a description of the field which should be added to the class, including any
    * initialization code to be generated.
    *
-   * If the compilation mode is configured as partial, and an implementation of `compilePartial` is
-   * provided, then this method is not called.
+   * If the compilation mode is configured as other than full but an implementation of the
+   * corresponding method is not provided, then this method is called as a fallback.
    */
   compileFull(
-      node: ClassDeclaration, analysis: Readonly<A>, resolution: Readonly<R>,
-      constantPool: ConstantPool): CompileResult|CompileResult[];
+    node: ClassDeclaration,
+    analysis: Readonly<A>,
+    resolution: Readonly<R>,
+    constantPool: ConstantPool,
+  ): CompileResult | CompileResult[];
 
   /**
    * Generates code for the decorator using a stable, but intermediate format suitable to be
@@ -217,9 +209,31 @@ export interface DecoratorHandler<D, A, S extends SemanticSymbol|null, R> {
    * If present, this method is used if the compilation mode is configured as partial, otherwise
    * `compileFull` is.
    */
-  compilePartial?
-      (node: ClassDeclaration, analysis: Readonly<A>, resolution: Readonly<R>): CompileResult
-      |CompileResult[];
+  compilePartial?(
+    node: ClassDeclaration,
+    analysis: Readonly<A>,
+    resolution: Readonly<R>,
+  ): CompileResult | CompileResult[];
+
+  /**
+   * Generates the function that will update a class' metadata at runtime during HMR.
+   */
+  compileHmrUpdateDeclaration?(
+    node: ClassDeclaration,
+    analysis: Readonly<A>,
+    resolution: Readonly<R>,
+  ): ts.FunctionDeclaration | null;
+
+  /**
+   * Generates code based on each individual source file without using its
+   * dependencies (suitable for local dev edit/refresh workflow)
+   */
+  compileLocal(
+    node: ClassDeclaration,
+    analysis: Readonly<A>,
+    resolution: Readonly<Partial<R>>,
+    constantPool: ConstantPool,
+  ): CompileResult | CompileResult[];
 }
 
 /**
@@ -230,14 +244,14 @@ export interface DetectResult<M> {
   /**
    * The node that triggered the match, which is typically a decorator.
    */
-  trigger: ts.Node|null;
+  trigger: ts.Node | null;
 
   /**
    * Refers to the decorator that was recognized for this detection, if any. This can be a concrete
    * decorator that is actually present in a file, or a synthetic decorator as inserted
    * programmatically.
    */
-  decorator: Decorator|null;
+  decorator: Decorator | null;
 
   /**
    * An arbitrary object to carry over from the detection phase into the analysis phase.
@@ -261,9 +275,10 @@ export interface AnalysisOutput<A> {
  */
 export interface CompileResult {
   name: string;
-  initializer: Expression|null;
+  initializer: Expression | null;
   statements: Statement[];
   type: Type;
+  deferrableImports: Set<ts.ImportDeclaration> | null;
 }
 
 export interface ResolveResult<R> {
@@ -274,10 +289,15 @@ export interface ResolveResult<R> {
 
 export interface DtsTransform {
   transformClassElement?(element: ts.ClassElement, imports: ImportManager): ts.ClassElement;
-  transformFunctionDeclaration?
-      (element: ts.FunctionDeclaration, imports: ImportManager): ts.FunctionDeclaration;
-  transformClass?
-      (clazz: ts.ClassDeclaration, elements: ReadonlyArray<ts.ClassElement>,
-       reflector: ReflectionHost, refEmitter: ReferenceEmitter,
-       imports: ImportManager): ts.ClassDeclaration;
+  transformFunctionDeclaration?(
+    element: ts.FunctionDeclaration,
+    imports: ImportManager,
+  ): ts.FunctionDeclaration;
+  transformClass?(
+    clazz: ts.ClassDeclaration,
+    elements: ReadonlyArray<ts.ClassElement>,
+    reflector: ReflectionHost,
+    refEmitter: ReferenceEmitter,
+    imports: ImportManager,
+  ): ts.ClassDeclaration;
 }
