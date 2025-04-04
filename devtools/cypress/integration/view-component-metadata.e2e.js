@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 const prepareHeaderExpansionPanelForAssertions = (selector) => {
@@ -17,9 +17,9 @@ describe('Viewing component metadata', () => {
   });
 
   describe('viewing TodoComponent', () => {
-    beforeEach(
-        () => prepareHeaderExpansionPanelForAssertions(
-            '.tree-node:contains("app-todo[TooltipDirective]")'));
+    beforeEach(() =>
+      prepareHeaderExpansionPanelForAssertions('.tree-node:contains("app-todo[TooltipDirective]")'),
+    );
 
     it('should display view encapsulation', () => {
       cy.contains('.meta-data-container .mat-button:first', 'View Encapsulation: Emulated');
@@ -31,9 +31,9 @@ describe('Viewing component metadata', () => {
   });
 
   describe('viewing DemoAppComponent', () => {
-    beforeEach(
-        () =>
-            prepareHeaderExpansionPanelForAssertions('.tree-node:contains("app-demo-component")'));
+    beforeEach(() =>
+      prepareHeaderExpansionPanelForAssertions('.tree-node:contains("app-demo-component")'),
+    );
 
     it('should display view encapsulation', () => {
       cy.contains('.meta-data-container .mat-button:first', 'View Encapsulation: None');
@@ -44,13 +44,13 @@ describe('Viewing component metadata', () => {
     });
 
     it('should display correct set of inputs', () => {
-      cy.contains('.cy-inputs', '@Inputs');
+      cy.contains('.cy-inputs', 'Inputs');
       cy.contains('.cy-inputs mat-tree-node:first span:first', 'inputOne');
       cy.contains('.cy-inputs mat-tree-node:last span:first', 'inputTwo');
     });
 
     it('should display correct set of outputs', () => {
-      cy.contains('.cy-outputs', '@Outputs');
+      cy.contains('.cy-outputs', 'Outputs');
       cy.contains('.cy-outputs mat-tree-node:first span:first', 'outputOne');
       cy.contains('.cy-outputs mat-tree-node:last span:first', 'outputTwo');
     });

@@ -3,13 +3,19 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {ChangeDetectionStrategy, Component, Input} from '@angular/core';
-import {ComponentType} from 'protocol';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ɵFramework as Framework,
+  computed,
+  inject,
+  input,
+} from '@angular/core';
+import {AngularDirectiveMetadata, AcxDirectiveMetadata, ComponentType} from 'protocol';
 
-import {DirectivePropertyResolver} from '../property-resolver/directive-property-resolver';
 import {ElementPropertyResolver} from '../property-resolver/element-property-resolver';
 
 @Component({
@@ -19,28 +25,48 @@ import {ElementPropertyResolver} from '../property-resolver/element-property-res
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ComponentMetadataComponent {
-  @Input() currentSelectedComponent: ComponentType;
+  readonly currentSelectedComponent = input.required<ComponentType>();
 
-  constructor(private _nestedProps: ElementPropertyResolver) {}
+  private _nestedProps = inject(ElementPropertyResolver);
 
-  viewEncapsulationModes = ['Emulated', 'Native', 'None', 'ShadowDom'];
+  angularViewEncapsulationModes = ['Emulated', 'Native', 'None', 'ShadowDom'];
+  acxViewEncapsulationModes = ['Emulated', 'None'];
 
-  get controller(): DirectivePropertyResolver|undefined {
-    if (!this.currentSelectedComponent) {
+  readonly controller = computed(() => {
+    const comp = this.currentSelectedComponent();
+    if (!comp) {
       return;
     }
-    return this._nestedProps.getDirectiveController(this.currentSelectedComponent.name);
-  }
+    return this._nestedProps.getDirectiveController(comp.name);
+  });
 
-  get viewEncapsulation(): string|undefined {
-    const encapsulationIndex = this?.controller?.directiveViewEncapsulation;
-    if (encapsulationIndex !== undefined) {
-      return this.viewEncapsulationModes[encapsulationIndex];
+  readonly viewEncapsulation = computed(() => {
+    const metadata = this.controller()?.directiveMetadata;
+    if (!metadata) return undefined;
+
+    const encapsulation = (metadata as AngularDirectiveMetadata | AcxDirectiveMetadata)
+      .encapsulation;
+    if (!encapsulation) return undefined;
+
+    switch (metadata.framework) {
+      case Framework.Angular:
+        return this.angularViewEncapsulationModes[encapsulation];
+      case Framework.ACX:
+        return this.acxViewEncapsulationModes[encapsulation];
+      default:
+        return undefined;
     }
-  }
+  });
 
-  get changeDetectionStrategy(): string|undefined {
-    const onPush = this?.controller?.directiveHasOnPushStrategy;
-    return onPush ? 'OnPush' : onPush !== undefined ? 'Default' : undefined;
-  }
+  readonly changeDetectionStrategy = computed(() => {
+    const metadata = this.controller()?.directiveMetadata;
+    if (!metadata) return undefined;
+
+    const meta = metadata as Partial<AcxDirectiveMetadata | AngularDirectiveMetadata>;
+    if (meta.onPush !== undefined) {
+      return meta.onPush ? 'OnPush' : 'Default';
+    } else {
+      return undefined;
+    }
+  });
 }
