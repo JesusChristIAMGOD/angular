@@ -3,20 +3,16 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-// DO NOT ADD public exports to this file.
-// The public API exports are specified in the `./localize` module, which is checked by the
-// public_api_guard rules
+export {clearTranslations, loadTranslations} from './src/translate';
+export {MessageId, TargetMessage} from './src/utils';
 
-export * from './localize';
+// Exports that are not part of the public API
+export * from './private';
 
-// The global declaration must be in the index.d.ts as otherwise it will not be picked up when used
-// with
-// /// <reference types="@angular/localize" />
-
-import {ɵLocalizeFn} from './localize';
+import {ɵLocalizeFn} from './private';
 
 // `declare global` allows us to escape the current module and place types on the global namespace
 declare global {
@@ -43,7 +39,7 @@ declare global {
    * ```
    *
    * This format is the same as that used for `i18n` markers in Angular templates. See the
-   * [Angular i18n guide](guide/i18n-common-prepare#mark-text-in-component-template).
+   * [Angular i18n guide](guide/i18n/prepare#mark-text-in-component-template).
    *
    * **Naming placeholders**
    *

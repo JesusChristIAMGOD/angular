@@ -3,12 +3,17 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {inject, Injectable, Renderer2, ɵRuntimeError as RuntimeError} from '@angular/core';
+import {
+  inject,
+  Injectable,
+  Renderer2,
+  ɵRuntimeError as RuntimeError,
+  DOCUMENT,
+} from '@angular/core';
 
-import {DOCUMENT} from '../../dom_tokens';
 import {RuntimeErrorCode} from '../../errors';
 
 import {DEFAULT_PRELOADED_IMAGES_LIMIT, PRELOADED_IMAGES} from './tokens';
@@ -46,12 +51,13 @@ export class PreloadLinkCreator {
     if (ngDevMode) {
       if (this.preloadedImages.size >= DEFAULT_PRELOADED_IMAGES_LIMIT) {
         throw new RuntimeError(
-            RuntimeErrorCode.TOO_MANY_PRELOADED_IMAGES,
-            ngDevMode &&
-                `The \`NgOptimizedImage\` directive has detected that more than ` +
-                    `${DEFAULT_PRELOADED_IMAGES_LIMIT} images were marked as priority. ` +
-                    `This might negatively affect an overall performance of the page. ` +
-                    `To fix this, remove the "priority" attribute from images with less priority.`);
+          RuntimeErrorCode.TOO_MANY_PRELOADED_IMAGES,
+          ngDevMode &&
+            `The \`NgOptimizedImage\` directive has detected that more than ` +
+              `${DEFAULT_PRELOADED_IMAGES_LIMIT} images were marked as priority. ` +
+              `This might negatively affect an overall performance of the page. ` +
+              `To fix this, remove the "priority" attribute from images with less priority.`,
+        );
       }
     }
 
