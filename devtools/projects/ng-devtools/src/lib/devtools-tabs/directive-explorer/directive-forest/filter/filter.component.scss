@@ -3,7 +3,7 @@
   padding: 0px;
   border-radius: 0px;
   box-shadow: none !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  border-bottom: 1px solid var(--color-separator);
 
   label {
     display: flex;
@@ -23,51 +23,38 @@
 
     .filter-input {
       border: none;
-      border-left: 1px solid rgba(0, 0, 0, 0.12);
       padding-left: 5px;
       width: 100%;
-      font-size: 11px;
-      font-family: inherit;
-      font-weight: inherit;
       height: 30px;
       outline: none;
-      color: rgba(0, 0, 0, 0.87);
+      background: var(--color-background);
     }
   }
+}
+
+.mdc-card {
+  flex-direction: row;
 }
 
 .up-down-buttons {
   display: flex;
 
   button {
-    width: 24px;
-    height: 24px;
-  }
-}
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
 
-:host {
-  ::ng-deep {
-    .up-down-buttons {
-      .mat-icon-button {
-        line-height: 25px;
-      }
+    opacity: 0.5;
 
-      button {
-        mat-icon {
-          opacity: 0.5;
-        }
-      }
+    &:hover {
+      opacity: 0.8;
     }
-  }
-}
 
-:host-context(.dark-theme) {
-  .filter {
-    label {
-      .filter-input {
-        background-color: #202124;
-        color: #ffffff;
-      }
+    &:active {
+      opacity: 1;
     }
   }
 }

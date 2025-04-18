@@ -3,11 +3,11 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 /**
- * Defines the CSS styles encapsulation policies for the {@link Component} decorator's
+ * Defines the CSS styles encapsulation policies for the {@link /api/core/Component Component} decorator's
  * `encapsulation` option.
  *
  * See {@link Component#encapsulation encapsulation}.
@@ -46,5 +46,5 @@ export enum ViewEncapsulation {
    * a ShadowRoot for the component's host element which is then used to encapsulate
    * all the Component's styling.
    */
-  ShadowDom = 3
+  ShadowDom = 3,
 }

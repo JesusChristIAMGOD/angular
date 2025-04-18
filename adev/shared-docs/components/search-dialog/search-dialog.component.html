@@ -1,0 +1,71 @@
+<dialog #searchDialog>
+  <div class="docs-search-container" (docsClickOutside)="closeSearchDialog()">
+    <docs-text-field
+      [autofocus]="true"
+      [hideIcon]="true"
+      [(ngModel)]="searchQuery"
+      class="docs-search-input"
+      placeholder="Search docs"
+    />
+
+    @if (searchResults.hasValue() && searchResults.value().length > 0) {
+      <ul class="docs-search-results docs-mini-scroll-track">
+        @for (result of searchResults.value(); track result.id) {
+          <li docsSearchItem [item]="result">
+            <a
+              [routerLink]="'/' + result.url | relativeLink: 'pathname'"
+              [fragment]="result.url | relativeLink: 'hash'"
+            >
+              <div>
+                <div class="docs-result-icon-and-type">
+                  <!-- Icon -->
+                  <span class="docs-search-result-icon" aria-hidden="true">
+                    <i role="presentation" class="material-symbols-outlined docs-icon-small">
+                      {{ result.type === 'code' ? 'code' : 'description'}}
+                    </i>
+                  </span>
+                  <!-- Results type -->
+                  <span class="docs-search-results__type" [innerHtml]="result.labelHtml"></span>
+                </div>
+
+                @if (result.subLabelHtml) {
+                  <span
+                    class="docs-search-results__type docs-search-results__lvl2"
+                    [innerHtml]="result.subLabelHtml"
+                  >
+                  </span>
+                }
+              </div>
+
+              <!-- Page title -->
+              <span class="docs-result-page-title">{{ result.category }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    } @else {
+      <div class="docs-search-results docs-mini-scroll-track">
+        @if (!searchResults.hasValue()) {
+          <div class="docs-search-results__start-typing">
+            <span>Start typing to see results</span>
+          </div>
+        } @else if (searchResults.value().length === 0) {
+          <div class="docs-search-results__no-results">
+            <span>No results found</span>
+          </div>
+        }
+      </div>
+    }
+
+    <div class="docs-algolia">
+      <span>Search by</span>
+      <a
+        target="_blank"
+        rel="noopener"
+        href="https://www.algolia.com/developers/?utm_source=angular.dev&utm_medium=referral&utm_content=powered_by&utm_campaign=docsearch"
+      >
+        <docs-algolia-icon />
+      </a>
+    </div>
+  </div>
+</dialog>

@@ -3,12 +3,13 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {Inject, Injectable, LOCALE_ID} from '@angular/core';
+import {Inject, Injectable, LOCALE_ID, ɵRuntimeError as RuntimeError} from '@angular/core';
 
 import {getLocalePluralCase, Plural} from './locale_data_api';
+import {RuntimeErrorCode} from '../errors';
 
 /**
  * @publicApi
@@ -28,7 +29,11 @@ export abstract class NgLocalization {
  * - the plural category otherwise
  */
 export function getPluralCategory(
-    value: number, cases: string[], ngLocalization: NgLocalization, locale?: string): string {
+  value: number,
+  cases: string[],
+  ngLocalization: NgLocalization,
+  locale?: string,
+): string {
   let key = `=${value}`;
 
   if (cases.indexOf(key) > -1) {
@@ -45,7 +50,10 @@ export function getPluralCategory(
     return 'other';
   }
 
-  throw new Error(`No plural message found for value "${value}"`);
+  throw new RuntimeError(
+    RuntimeErrorCode.NO_PLURAL_MESSAGE_FOUND,
+    ngDevMode && `No plural message found for value "${value}"`,
+  );
 }
 
 /**
