@@ -3,9 +3,8 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
-
 
 /**
  * Special flag indicating that a decorator is of type `Inject`. It's used to make `Inject`
@@ -13,36 +12,7 @@
  * Note: this flag is not included into the `InjectFlags` since it's an internal-only API.
  */
 export const enum DecoratorFlags {
-  Inject = -1
-}
-
-/**
- * Injection flags for DI.
- *
- * @publicApi
- * @deprecated use an options object for `inject` instead.
- */
-export enum InjectFlags {
-  // TODO(alxhub): make this 'const' (and remove `InternalInjectFlags` enum) when ngc no longer
-  // writes exports of it into ngfactory files.
-
-  /** Check self and check parent injector if needed */
-  Default = 0b0000,
-
-  /**
-   * Specifies that an injector should retrieve a dependency from any injector until reaching the
-   * host element of the current component. (Only used with Element Injector)
-   */
-  Host = 0b0001,
-
-  /** Don't ascend to ancestors of the node requesting injection. */
-  Self = 0b0010,
-
-  /** Skip the node that is requesting injection. */
-  SkipSelf = 0b0100,
-
-  /** Inject `defaultValue` instead if token not found. */
-  Optional = 0b1000,
+  Inject = -1,
 }
 
 /**
@@ -82,7 +52,7 @@ export const enum InternalInjectFlags {
 }
 
 /**
- * Type of the options argument to `inject`.
+ * Type of the options argument to [`inject`](api/core/inject).
  *
  * @publicApi
  */

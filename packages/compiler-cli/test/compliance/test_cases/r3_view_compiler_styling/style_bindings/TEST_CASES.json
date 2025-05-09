@@ -13,8 +13,7 @@
             "style_binding.js"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     },
     {
       "description": "should correctly count the total slots required when style/class bindings include interpolation",
@@ -28,8 +27,7 @@
             "binding_slots.js"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     },
     {
       "description": "should place initial, multi, singular and application followed by attribute style instructions in the template code in that order",
@@ -43,8 +41,7 @@
             "binding_slots_interpolations.js"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     },
     {
       "description": "should assign a sanitizer instance to the element style allocation instruction if any url-based properties are detected",
@@ -58,8 +55,7 @@
             "style_ordering.js"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     },
     {
       "description": "should support [style.foo.suffix] style bindings with a suffix",
@@ -73,8 +69,7 @@
             "style_binding_suffixed.js"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     },
     {
       "description": "should not create instructions for empty style bindings",
@@ -88,8 +83,43 @@
             "empty_style_bindings.js"
           ]
         }
+      ]
+    },
+    {
+      "description": "should support style bindings with a colon at the start of the applied style",
+      "inputFiles": [
+        "colon_style.ts"
       ],
-      "skipForTemplatePipeline": true
+      "expectations": [
+        {
+          "failureMessage": "Incorrect template",
+          "files": [
+            "colon_style.js"
+          ]
+        }
+      ]
+    },
+    {
+      "description": "should handle duplicate style bindings",
+      "inputFiles": [
+        "duplicate_style_bindings.ts"
+      ],
+      "expectations": [
+        {
+          "failureMessage": "Incorrect template"
+        }
+      ]
+    },
+    {
+      "description": "should not mangle css custom property names",
+      "inputFiles": [
+        "css_custom_properties.ts"
+      ],
+      "expectations": [
+        {
+          "failureMessage": "Incorrect template"
+        }
+      ]
     }
   ]
 }

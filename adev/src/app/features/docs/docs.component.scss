@@ -1,0 +1,23 @@
+:host {
+  .docs-viewer {
+    &.docs-animate-content {
+      animation: fade-in 500ms;
+    }
+  }
+  padding: var(--layout-padding);
+  
+  @media only screen and (min-width: 1430px) {
+    display: flex;
+    justify-content: center;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}

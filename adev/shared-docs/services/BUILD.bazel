@@ -1,0 +1,62 @@
+load("//tools:defaults.bzl", "karma_web_test_suite", "ng_module")
+load("//tools:defaults2.bzl", "ts_project")
+
+package(default_visibility = ["//visibility:private"])
+
+ts_project(
+    name = "services",
+    srcs = [
+        "index.ts",
+    ],
+    interop_deps = [
+        ":lib",
+    ],
+    tsconfig = "//adev/shared-docs:tsconfig_test",
+    visibility = ["//adev/shared-docs:__subpackages__"],
+)
+
+ng_module(
+    name = "lib",
+    srcs = glob(
+        [
+            "**/*.ts",
+        ],
+        exclude = [
+            "index.ts",
+            "**/*.spec.ts",
+        ],
+    ),
+    deps = [
+        "//adev/shared-docs/interfaces",
+        "//adev/shared-docs/providers",
+        "//adev/shared-docs/utils",
+        "//packages/common",
+        "//packages/core",
+        "//packages/core/rxjs-interop",
+        "//packages/router",
+        "@npm//algoliasearch",
+        "@npm//rxjs",
+    ],
+)
+
+ts_project(
+    name = "test_lib",
+    testonly = True,
+    srcs = glob(
+        ["*.spec.ts"],
+    ),
+    interop_deps = [
+        ":lib",
+        "//adev/shared-docs/interfaces",
+        "//adev/shared-docs/providers",
+        "//packages/common",
+        "//packages/core",
+        "//packages/core/testing",
+    ],
+    tsconfig = "//adev/shared-docs:tsconfig_test",
+)
+
+karma_web_test_suite(
+    name = "test",
+    deps = [":test_lib"],
+)

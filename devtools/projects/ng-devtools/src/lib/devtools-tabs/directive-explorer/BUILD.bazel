@@ -1,7 +1,7 @@
-load("//devtools/tools:ng_module.bzl", "ng_module")
 load("@io_bazel_rules_sass//:defs.bzl", "sass_binary")
-load("//devtools/tools:typescript.bzl", "ts_test_library")
 load("//devtools/tools:defaults.bzl", "karma_web_test_suite")
+load("//devtools/tools:ng_module.bzl", "ng_module")
+load("//devtools/tools:typescript.bzl", "ts_test_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -14,7 +14,6 @@ ng_module(
     name = "directive-explorer",
     srcs = [
         "directive-explorer.component.ts",
-        "directive-explorer.module.ts",
     ],
     angular_assets = [
         "directive-explorer.component.html",
@@ -42,12 +41,23 @@ ng_module(
 ts_test_library(
     name = "directive_explorer_test",
     srcs = ["directive-explorer.spec.ts"],
-    deps = [
+    interop_deps = [
+        "//packages/core",
         ":directive-explorer",
         "//devtools/projects/ng-devtools/src/lib/devtools-tabs/directive-explorer/directive-forest",
+        "//devtools/projects/ng-devtools/src/lib/devtools-tabs/directive-explorer/directive-forest/breadcrumbs",
         "//devtools/projects/ng-devtools/src/lib/devtools-tabs/directive-explorer/directive-forest/index-forest",
         "//devtools/projects/ng-devtools/src/lib/devtools-tabs/directive-explorer/property-resolver",
-        "//devtools/projects/protocol",
+        "//devtools/projects/ng-devtools/src/lib/devtools-tabs/directive-explorer/property-tab",
+        "//devtools/projects/ng-devtools/src/lib/devtools-tabs/tab-update",
+        "//packages/core/testing",
+        "//packages/platform-browser",
+        "//devtools/projects/ng-devtools/src/lib/application-services:frame_manager",
+    ],
+    deps = [
+        "//:node_modules/tslib",
+        "//devtools/projects/ng-devtools/src/lib/application-operations:application-operations_rjs",
+        "//devtools/projects/protocol:protocol_rjs",
     ],
 )
 
@@ -56,8 +66,5 @@ karma_web_test_suite(
     name = "test",
     deps = [
         ":directive_explorer_test",
-        "//packages/common/http",
-        "//packages/platform-browser",
-        "//packages/platform-browser/animations",
     ],
 )

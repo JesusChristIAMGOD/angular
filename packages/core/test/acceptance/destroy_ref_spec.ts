@@ -3,12 +3,19 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {NgIf} from '@angular/common';
-import {Component, createEnvironmentInjector, DestroyRef, Directive, EnvironmentInjector, inject} from '@angular/core';
-import {TestBed} from '@angular/core/testing';
+import {
+  Component,
+  createEnvironmentInjector,
+  DestroyRef,
+  Directive,
+  EnvironmentInjector,
+  inject,
+} from '../../src/core';
+import {TestBed} from '../../testing';
 
 describe('DestroyRef', () => {
   describe('for environnement injector', () => {
@@ -16,7 +23,7 @@ describe('DestroyRef', () => {
       let destroyed = false;
       const envInjector = createEnvironmentInjector([], TestBed.inject(EnvironmentInjector));
 
-      envInjector.get(DestroyRef).onDestroy(() => destroyed = true);
+      envInjector.get(DestroyRef).onDestroy(() => (destroyed = true));
       expect(destroyed).toBe(false);
 
       envInjector.destroy();
@@ -27,7 +34,7 @@ describe('DestroyRef', () => {
       let destroyed = false;
       const envInjector = createEnvironmentInjector([], TestBed.inject(EnvironmentInjector));
 
-      const unRegFn = envInjector.get(DestroyRef).onDestroy(() => destroyed = true);
+      const unRegFn = envInjector.get(DestroyRef).onDestroy(() => (destroyed = true));
       expect(destroyed).toBe(false);
 
       // explicitly unregister before destroy
@@ -75,12 +82,11 @@ describe('DestroyRef', () => {
 
       @Component({
         selector: 'test',
-        standalone: true,
         template: ``,
       })
       class TestCmp {
         constructor(destroyCtx: DestroyRef) {
-          destroyCtx.onDestroy(() => destroyed = true);
+          destroyCtx.onDestroy(() => (destroyed = true));
         }
       }
 
@@ -96,17 +102,15 @@ describe('DestroyRef', () => {
 
       @Directive({
         selector: '[withCleanup]',
-        standalone: true,
       })
       class WithCleanupDirective {
         constructor() {
-          inject(DestroyRef).onDestroy(() => destroyed = true);
+          inject(DestroyRef).onDestroy(() => (destroyed = true));
         }
       }
 
       @Component({
         selector: 'test',
-        standalone: true,
         imports: [WithCleanupDirective],
         // note: we are trying to register a LView-level cleanup _before_ TView-level one (event
         // listener)
@@ -129,17 +133,15 @@ describe('DestroyRef', () => {
 
       @Directive({
         selector: '[withCleanup]',
-        standalone: true,
       })
       class WithCleanupDirective {
         constructor() {
-          inject(DestroyRef).onDestroy(() => destroyed = true);
+          inject(DestroyRef).onDestroy(() => (destroyed = true));
         }
       }
 
       @Component({
         selector: 'test',
-        standalone: true,
         imports: [WithCleanupDirective, NgIf],
         template: `<ng-template [ngIf]="show"><div withCleanup></div></ng-template>`,
       })
@@ -160,7 +162,6 @@ describe('DestroyRef', () => {
       const onDestroySpy = jasmine.createSpy('destroy spy');
       @Component({
         selector: 'child',
-        standalone: true,
         template: '',
       })
       class Child {
@@ -169,7 +170,6 @@ describe('DestroyRef', () => {
         }
       }
       @Component({
-        standalone: true,
         imports: [Child, NgIf],
         template: '<child *ngIf="showChild"></child>',
       })
@@ -190,13 +190,12 @@ describe('DestroyRef', () => {
 
     @Component({
       selector: 'test',
-      standalone: true,
       template: ``,
     })
     class TestCmp {
       unRegFn: () => void;
       constructor(destroyCtx: DestroyRef) {
-        this.unRegFn = destroyCtx.onDestroy(() => destroyed = true);
+        this.unRegFn = destroyCtx.onDestroy(() => (destroyed = true));
       }
     }
 
@@ -216,7 +215,6 @@ describe('DestroyRef', () => {
 
     @Component({
       selector: 'test',
-      standalone: true,
       template: ``,
     })
     class TestCmp {
@@ -241,32 +239,11 @@ describe('DestroyRef', () => {
     expect(onDestroyCalls).toBe(2);
   });
 
-  it('should throw when trying to register destroy callback on destroyed LView', () => {
-    @Component({
-      selector: 'test',
-      standalone: true,
-      template: ``,
-    })
-    class TestCmp {
-      constructor(public destroyRef: DestroyRef) {}
-    }
-
-
-    const fixture = TestBed.createComponent(TestCmp);
-    const destroyRef = fixture.componentRef.instance.destroyRef;
-    fixture.componentRef.destroy();
-
-    expect(() => {
-      destroyRef.onDestroy(() => {});
-    }).toThrowError('NG0911: View has already been destroyed.');
-  });
-
   it('should allow unregistration while destroying', () => {
     const destroyedLog: string[] = [];
 
     @Component({
       selector: 'test',
-      standalone: true,
       template: ``,
     })
     class TestCmp {

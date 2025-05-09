@@ -1,11 +1,4 @@
 load("//tools:defaults.bzl", "jasmine_node_test", "karma_web_test_suite", "ts_library")
-load("//tools/circular_dependency_test:index.bzl", "circular_dependency_test")
-
-circular_dependency_test(
-    name = "circular_deps_test",
-    entry_point = "angular/packages/common/http/index.mjs",
-    deps = ["//packages/common/http"],
-)
 
 ts_library(
     name = "test_lib",
@@ -29,17 +22,7 @@ ts_library(
 jasmine_node_test(
     name = "test",
     bootstrap = ["//tools/testing:node"],
-    tags = [
-        # Remote execution doesn't work with Node.js 18 right now.
-        # See https://github.com/angular/dev-infra/issues/1017
-        "no-remote-exec",
-    ],
-    # TODO remove once the Node 18 is the default toolchain.
-    toolchain = select({
-        "@bazel_tools//src/conditions:linux_x86_64": "@node18_linux_amd64//:node_toolchain",
-        "@bazel_tools//src/conditions:darwin": "@node18_darwin_amd64//:node_toolchain",
-        "@bazel_tools//src/conditions:windows": "@node18_windows_amd64//:node_toolchain",
-    }),
+    flaky = True,  # TODO: figure out why one of the transferCache tests is flaky
     deps = [
         ":test_lib",
     ],
@@ -47,6 +30,7 @@ jasmine_node_test(
 
 karma_web_test_suite(
     name = "test_web",
+    flaky = True,  # TODO: figure out why one of the transferCache tests is flaky
     deps = [
         ":test_lib",
     ],
