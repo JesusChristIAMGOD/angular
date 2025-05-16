@@ -3,12 +3,13 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
+
+/// <reference path="../../../goog.d.ts" />
 
 import {InjectionToken} from '../di/injection_token';
 import {inject} from '../di/injector_compatibility';
-import {InjectFlags} from '../di/interface/injector';
 
 import {DEFAULT_LOCALE_ID, USD_CURRENCY_CODE} from './localization';
 
@@ -21,8 +22,12 @@ declare const $localize: {locale?: string};
  * * Ivy enabled: use `$localize.locale`
  */
 export function getGlobalLocale(): string {
-  if (typeof ngI18nClosureMode !== 'undefined' && ngI18nClosureMode &&
-      typeof goog !== 'undefined' && goog.LOCALE !== 'en') {
+  if (
+    typeof ngI18nClosureMode !== 'undefined' &&
+    ngI18nClosureMode &&
+    typeof goog !== 'undefined' &&
+    goog.LOCALE !== 'en'
+  ) {
     // * The default `goog.LOCALE` value is `en`, while Angular used `en-US`.
     // * In order to preserve backwards compatibility, we use Angular default value over
     //   Closure Compiler's one.
@@ -46,27 +51,36 @@ export function getGlobalLocale(): string {
  * It is used for i18n extraction, by i18n pipes (DatePipe, I18nPluralPipe, CurrencyPipe,
  * DecimalPipe and PercentPipe) and by ICU expressions.
  *
- * See the [i18n guide](guide/i18n-common-locale-id) for more information.
+ * See the [i18n guide](guide/i18n/locale-id) for more information.
  *
  * @usageNotes
  * ### Example
- *
- * ```typescript
- * import { LOCALE_ID } from '@angular/core';
- * import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
+ * In standalone apps:
+ * ```ts
+ * import { LOCALE_ID, ApplicationConfig } from '@angular/core';
  * import { AppModule } from './app/app.module';
  *
- * platformBrowserDynamic().bootstrapModule(AppModule, {
+ * const appConfig: ApplicationConfig = {
+ *   providers: [{provide: LOCALE_ID, useValue: 'en-US' }]
+ * };
+ * ```
+ *
+ * In module based apps:
+ * ```ts
+ * import { LOCALE_ID } from '@angular/core';
+ * import { platformBrowser } from '@angular/platform-browser';
+ * import { AppModule } from './app/app.module';
+ *
+ * platformBrowser().bootstrapModule(AppModule, {
  *   providers: [{provide: LOCALE_ID, useValue: 'en-US' }]
  * });
  * ```
  *
  * @publicApi
  */
-export const LOCALE_ID: InjectionToken<string> = new InjectionToken('LocaleId', {
+export const LOCALE_ID: InjectionToken<string> = new InjectionToken(ngDevMode ? 'LocaleId' : '', {
   providedIn: 'root',
-  factory: () =>
-      inject(LOCALE_ID, InjectFlags.Optional | InjectFlags.SkipSelf) || getGlobalLocale(),
+  factory: () => inject(LOCALE_ID, {optional: true, skipSelf: true}) || getGlobalLocale(),
 });
 
 /**
@@ -74,15 +88,11 @@ export const LOCALE_ID: InjectionToken<string> = new InjectionToken('LocaleId', 
  * CurrencyPipe when there is no currency code passed into it. This is only used by
  * CurrencyPipe and has no relation to locale currency. Defaults to USD if not configured.
  *
- * See the [i18n guide](guide/i18n-common-locale-id) for more information.
+ * See the [i18n guide](guide/i18n/locale-id) for more information.
  *
- * <div class="alert is-helpful">
+ * <div class="docs-alert docs-alert-helpful">
  *
- * **Deprecation notice:**
- *
- * The default currency code is currently always `USD` but this is deprecated from v9.
- *
- * **In v10 the default currency code will be taken from the current locale.**
+ * The default currency code is currently always `USD`.
  *
  * If you need the previous behavior then set it by creating a `DEFAULT_CURRENCY_CODE` provider in
  * your application `NgModule`:
@@ -95,71 +105,106 @@ export const LOCALE_ID: InjectionToken<string> = new InjectionToken('LocaleId', 
  *
  * @usageNotes
  * ### Example
- *
- * ```typescript
- * import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
+ * In standalone apps:
+ * ```ts
+ * import { LOCALE_ID, ApplicationConfig } from '@angular/core';
  * import { AppModule } from './app/app.module';
  *
- * platformBrowserDynamic().bootstrapModule(AppModule, {
+ * const appConfig: ApplicationConfig = {
+ *   providers: [{provide: DEFAULT_CURRENCY_CODE, useValue: 'EUR' }]
+ * };
+ * ```
+ *
+ * In module based apps:
+ * ```ts
+ * import { platformBrowser } from '@angular/platform-browser';
+ * import { AppModule } from './app/app.module';
+ *
+ * platformBrowser().bootstrapModule(AppModule, {
  *   providers: [{provide: DEFAULT_CURRENCY_CODE, useValue: 'EUR' }]
  * });
  * ```
  *
  * @publicApi
  */
-export const DEFAULT_CURRENCY_CODE = new InjectionToken<string>('DefaultCurrencyCode', {
-  providedIn: 'root',
-  factory: () => USD_CURRENCY_CODE,
-});
+export const DEFAULT_CURRENCY_CODE = new InjectionToken<string>(
+  ngDevMode ? 'DefaultCurrencyCode' : '',
+  {
+    providedIn: 'root',
+    factory: () => USD_CURRENCY_CODE,
+  },
+);
 
 /**
  * Use this token at bootstrap to provide the content of your translation file (`xtb`,
  * `xlf` or `xlf2`) when you want to translate your application in another language.
  *
- * See the [i18n guide](guide/i18n-common-merge) for more information.
+ * See the [i18n guide](guide/i18n/merge) for more information.
  *
  * @usageNotes
  * ### Example
+ * In standalone apps:
+ * ```ts
+ * import { LOCALE_ID, ApplicationConfig } from '@angular/core';
+ * import { AppModule } from './app/app.module';
  *
- * ```typescript
+ * const appConfig: ApplicationConfig = {
+ *   providers: [{provide: TRANSLATIONS, useValue: translations }]
+ * };
+ * ```
+ *
+ * In module based apps:
+ * ```ts
  * import { TRANSLATIONS } from '@angular/core';
- * import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
+ * import { platformBrowser } from '@angular/platform-browser';
  * import { AppModule } from './app/app.module';
  *
  * // content of your translation file
  * const translations = '....';
  *
- * platformBrowserDynamic().bootstrapModule(AppModule, {
+ * platformBrowser().bootstrapModule(AppModule, {
  *   providers: [{provide: TRANSLATIONS, useValue: translations }]
  * });
  * ```
  *
  * @publicApi
  */
-export const TRANSLATIONS = new InjectionToken<string>('Translations');
+export const TRANSLATIONS = new InjectionToken<string>(ngDevMode ? 'Translations' : '');
 
 /**
  * Provide this token at bootstrap to set the format of your {@link TRANSLATIONS}: `xtb`,
  * `xlf` or `xlf2`.
  *
- * See the [i18n guide](guide/i18n-common-merge) for more information.
+ * See the [i18n guide](guide/i18n/merge) for more information.
  *
  * @usageNotes
  * ### Example
- *
- * ```typescript
- * import { TRANSLATIONS_FORMAT } from '@angular/core';
- * import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
+ * In standalone apps:
+ * ```ts
+ * import { LOCALE_ID, ApplicationConfig } from '@angular/core';
  * import { AppModule } from './app/app.module';
  *
- * platformBrowserDynamic().bootstrapModule(AppModule, {
+ * const appConfig: ApplicationConfig = {
+ *   providers: [{provide: TRANSLATIONS_FORMAT, useValue: 'xlf' }]
+ * };
+ * ```
+ *
+ * In module based apps: *
+ * ```ts
+ * import { TRANSLATIONS_FORMAT } from '@angular/core';
+ * import { platformBrowser } from '@angular/platform-browser';
+ * import { AppModule } from './app/app.module';
+ *
+ * platformBrowser().bootstrapModule(AppModule, {
  *   providers: [{provide: TRANSLATIONS_FORMAT, useValue: 'xlf' }]
  * });
  * ```
  *
  * @publicApi
  */
-export const TRANSLATIONS_FORMAT = new InjectionToken<string>('TranslationsFormat');
+export const TRANSLATIONS_FORMAT = new InjectionToken<string>(
+  ngDevMode ? 'TranslationsFormat' : '',
+);
 
 /**
  * Use this enum at bootstrap as an option of `bootstrapModule` to define the strategy
@@ -168,16 +213,16 @@ export const TRANSLATIONS_FORMAT = new InjectionToken<string>('TranslationsForma
  * - Warning (default): show a warning in the console and/or shell.
  * - Ignore: do nothing.
  *
- * See the [i18n guide](guide/i18n-common-merge#report-missing-translations) for more information.
+ * See the [i18n guide](guide/i18n/merge#report-missing-translations) for more information.
  *
  * @usageNotes
  * ### Example
- * ```typescript
+ * ```ts
  * import { MissingTranslationStrategy } from '@angular/core';
- * import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
+ * import { platformBrowser } from '@angular/platform-browser';
  * import { AppModule } from './app/app.module';
  *
- * platformBrowserDynamic().bootstrapModule(AppModule, {
+ * platformBrowser().bootstrapModule(AppModule, {
  *   missingTranslation: MissingTranslationStrategy.Error
  * });
  * ```

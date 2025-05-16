@@ -3,32 +3,97 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {AST, CssSelector, DomElementSchemaRegistry, ExternalExpr, LiteralPrimitive, ParseSourceSpan, PropertyRead, SafePropertyRead, TmplAstElement, TmplAstNode, TmplAstTemplate, TmplAstTextAttribute, WrappedNodeExpr} from '@angular/compiler';
+import {
+  AST,
+  CssSelector,
+  DomElementSchemaRegistry,
+  ExternalExpr,
+  LiteralPrimitive,
+  ParseSourceSpan,
+  PropertyRead,
+  SafePropertyRead,
+  TemplateEntity,
+  TmplAstComponent,
+  TmplAstDirective,
+  TmplAstElement,
+  TmplAstHostElement,
+  TmplAstNode,
+  TmplAstTemplate,
+  TmplAstTextAttribute,
+  WrappedNodeExpr,
+} from '@angular/compiler';
 import ts from 'typescript';
 
 import {ErrorCode, ngErrorCode} from '../../diagnostics';
 import {absoluteFromSourceFile, AbsoluteFsPath, getSourceFileOrError} from '../../file_system';
 import {Reference, ReferenceEmitKind, ReferenceEmitter} from '../../imports';
 import {IncrementalBuild} from '../../incremental/api';
-import {DirectiveMeta, MetadataReader, MetadataReaderWithIndex, MetaKind, NgModuleIndex, NgModuleMeta, PipeMeta} from '../../metadata';
+import {
+  DirectiveMeta,
+  MetadataReader,
+  MetadataReaderWithIndex,
+  MetaKind,
+  NgModuleIndex,
+  NgModuleMeta,
+  PipeMeta,
+} from '../../metadata';
 import {PerfCheckpoint, PerfEvent, PerfPhase, PerfRecorder} from '../../perf';
 import {ProgramDriver, UpdateMode} from '../../program_driver';
-import {ClassDeclaration, DeclarationNode, isNamedClassDeclaration, ReflectionHost} from '../../reflection';
-import {ComponentScopeKind, ComponentScopeReader, TypeCheckScopeRegistry} from '../../scope';
+import {
+  ClassDeclaration,
+  DeclarationNode,
+  isNamedClassDeclaration,
+  ReflectionHost,
+} from '../../reflection';
+import {
+  ComponentScopeKind,
+  ComponentScopeReader,
+  StandaloneScope,
+  TypeCheckScopeRegistry,
+  LocalModuleScope,
+  ComponentScope,
+} from '../../scope';
 import {isShim} from '../../shims';
 import {getSourceFileOrNull, isSymbolWithValueDeclaration} from '../../util/src/typescript';
-import {ElementSymbol, FullTemplateMapping, GlobalCompletion, NgTemplateDiagnostic, OptimizeFor, PotentialDirective, PotentialImport, PotentialImportKind, PotentialImportMode, PotentialPipe, ProgramTypeCheckAdapter, Symbol, TcbLocation, TemplateDiagnostic, TemplateId, TemplateSymbol, TemplateTypeChecker, TypeCheckableDirectiveMeta, TypeCheckingConfig} from '../api';
+import {
+  ElementSymbol,
+  FullSourceMapping,
+  GlobalCompletion,
+  NgTemplateDiagnostic,
+  OptimizeFor,
+  PotentialDirective,
+  PotentialImport,
+  PotentialImportKind,
+  PotentialImportMode,
+  PotentialPipe,
+  ProgramTypeCheckAdapter,
+  SelectorlessComponentSymbol,
+  SelectorlessDirectiveSymbol,
+  Symbol,
+  TcbLocation,
+  TemplateDiagnostic,
+  TemplateSymbol,
+  TemplateTypeChecker,
+  TypeCheckableDirectiveMeta,
+  TypeCheckingConfig,
+} from '../api';
 import {makeTemplateDiagnostic} from '../diagnostics';
 
 import {CompletionEngine} from './completion';
-import {InliningMode, ShimTypeCheckingData, TemplateData, TypeCheckContextImpl, TypeCheckingHost} from './context';
+import {
+  InliningMode,
+  ShimTypeCheckingData,
+  TypeCheckData,
+  TypeCheckContextImpl,
+  TypeCheckingHost,
+} from './context';
 import {shouldReportDiagnostic, translateDiagnostic} from './diagnostics';
 import {TypeCheckShimGenerator} from './shim';
-import {TemplateSourceManager} from './source';
-import {findTypeCheckBlock, getTemplateMapping, TemplateSourceResolver} from './tcb_util';
+import {DirectiveSourceManager} from './source';
+import {findTypeCheckBlock, getSourceMapping, TypeCheckSourceResolver} from './tcb_util';
 import {SymbolBuilder} from './template_symbol_builder';
 
 const REGISTRY = new DomElementSchemaRegistry();
@@ -74,42 +139,65 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
    * destroyed when the `ts.Program` changes and the `TemplateTypeCheckerImpl` as a whole is
    * destroyed and replaced.
    */
-  private elementTagCache = new Map<ts.ClassDeclaration, Map<string, PotentialDirective|null>>();
+  private elementTagCache = new Map<ts.ClassDeclaration, Map<string, PotentialDirective | null>>();
 
   private isComplete = false;
 
   constructor(
-      private originalProgram: ts.Program, readonly programDriver: ProgramDriver,
-      private typeCheckAdapter: ProgramTypeCheckAdapter, private config: TypeCheckingConfig,
-      private refEmitter: ReferenceEmitter, private reflector: ReflectionHost,
-      private compilerHost: Pick<ts.CompilerHost, 'getCanonicalFileName'>,
-      private priorBuild: IncrementalBuild<unknown, FileTypeCheckingData>,
-      private readonly metaReader: MetadataReader,
-      private readonly localMetaReader: MetadataReaderWithIndex,
-      private readonly ngModuleIndex: NgModuleIndex,
-      private readonly componentScopeReader: ComponentScopeReader,
-      private readonly typeCheckScopeRegistry: TypeCheckScopeRegistry,
-      private readonly perf: PerfRecorder) {}
+    private originalProgram: ts.Program,
+    readonly programDriver: ProgramDriver,
+    private typeCheckAdapter: ProgramTypeCheckAdapter,
+    private config: TypeCheckingConfig,
+    private refEmitter: ReferenceEmitter,
+    private reflector: ReflectionHost,
+    private compilerHost: Pick<ts.CompilerHost, 'getCanonicalFileName'>,
+    private priorBuild: IncrementalBuild<unknown, FileTypeCheckingData>,
+    private readonly metaReader: MetadataReader,
+    private readonly localMetaReader: MetadataReaderWithIndex,
+    private readonly ngModuleIndex: NgModuleIndex,
+    private readonly componentScopeReader: ComponentScopeReader,
+    private readonly typeCheckScopeRegistry: TypeCheckScopeRegistry,
+    private readonly perf: PerfRecorder,
+  ) {}
 
-  getTemplate(component: ts.ClassDeclaration): TmplAstNode[]|null {
-    const {data} = this.getLatestComponentState(component);
-    if (data === null) {
-      return null;
+  getTemplate(component: ts.ClassDeclaration, optimizeFor?: OptimizeFor): TmplAstNode[] | null {
+    const {data} = this.getLatestComponentState(component, optimizeFor);
+    return data?.template ?? null;
+  }
+
+  getHostElement(
+    directive: ts.ClassDeclaration,
+    optimizeFor?: OptimizeFor,
+  ): TmplAstHostElement | null {
+    const {data} = this.getLatestComponentState(directive, optimizeFor);
+    return data?.hostElement ?? null;
+  }
+
+  getUsedDirectives(component: ts.ClassDeclaration): TypeCheckableDirectiveMeta[] | null {
+    return this.getLatestComponentState(component).data?.boundTarget.getUsedDirectives() ?? null;
+  }
+
+  getUsedPipes(component: ts.ClassDeclaration): string[] | null {
+    return this.getLatestComponentState(component).data?.boundTarget.getUsedPipes() ?? null;
+  }
+
+  private getLatestComponentState(
+    component: ts.ClassDeclaration,
+    optimizeFor: OptimizeFor = OptimizeFor.SingleFile,
+  ): {
+    data: TypeCheckData | null;
+    tcb: ts.Node | null;
+    tcbPath: AbsoluteFsPath;
+    tcbIsShim: boolean;
+  } {
+    switch (optimizeFor) {
+      case OptimizeFor.WholeProgram:
+        this.ensureAllShimsForAllFiles();
+        break;
+      case OptimizeFor.SingleFile:
+        this.ensureShimForComponent(component);
+        break;
     }
-    return data.template;
-  }
-
-  getUsedDirectives(component: ts.ClassDeclaration): TypeCheckableDirectiveMeta[]|null {
-    return this.getLatestComponentState(component).data?.boundTarget.getUsedDirectives() || null;
-  }
-
-  getUsedPipes(component: ts.ClassDeclaration): string[]|null {
-    return this.getLatestComponentState(component).data?.boundTarget.getUsedPipes() || null;
-  }
-
-  private getLatestComponentState(component: ts.ClassDeclaration):
-      {data: TemplateData|null, tcb: ts.Node|null, tcbPath: AbsoluteFsPath, tcbIsShim: boolean} {
-    this.ensureShimForComponent(component);
 
     const sf = component.getSourceFile();
     const sfPath = absoluteFromSourceFile(sf);
@@ -121,9 +209,8 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
       return {data: null, tcb: null, tcbPath: shimPath, tcbIsShim: true};
     }
 
-    const templateId = fileRecord.sourceManager.getTemplateId(component);
+    const id = fileRecord.sourceManager.getTypeCheckId(component);
     const shimRecord = fileRecord.shimData.get(shimPath)!;
-    const id = fileRecord.sourceManager.getTemplateId(component);
 
     const program = this.programDriver.getProgram();
     const shimSf = getSourceFileOrNull(program, shimPath);
@@ -132,7 +219,7 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
       throw new Error(`Error: no shim file in program: ${shimPath}`);
     }
 
-    let tcb: ts.Node|null = findTypeCheckBlock(shimSf, id, /*isDiagnosticsRequest*/ false);
+    let tcb: ts.Node | null = findTypeCheckBlock(shimSf, id, /*isDiagnosticsRequest*/ false);
 
     let tcbPath = shimPath;
     if (tcb === null) {
@@ -145,9 +232,9 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
       }
     }
 
-    let data: TemplateData|null = null;
-    if (shimRecord.templates.has(templateId)) {
-      data = shimRecord.templates.get(templateId)!;
+    let data: TypeCheckData | null = null;
+    if (shimRecord.data.has(id)) {
+      data = shimRecord.data.get(id)!;
     }
 
     return {data, tcb, tcbPath, tcbIsShim: tcbPath === shimPath};
@@ -157,8 +244,10 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     return this.getFileAndShimRecordsForPath(filePath) !== null;
   }
 
-  private getFileRecordForTcbLocation({tcbPath, isShimFile}: TcbLocation): FileTypeCheckingData
-      |null {
+  private getFileRecordForTcbLocation({
+    tcbPath,
+    isShimFile,
+  }: TcbLocation): FileTypeCheckingData | null {
     if (!isShimFile) {
       // The location is not within a shim file but corresponds with an inline TCB in an original
       // source file; we can obtain the record directly by its path.
@@ -179,8 +268,9 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     }
   }
 
-  private getFileAndShimRecordsForPath(shimPath: AbsoluteFsPath):
-      {fileRecord: FileTypeCheckingData, shimRecord: ShimTypeCheckingData}|null {
+  private getFileAndShimRecordsForPath(
+    shimPath: AbsoluteFsPath,
+  ): {fileRecord: FileTypeCheckingData; shimRecord: ShimTypeCheckingData} | null {
     for (const fileRecord of this.state.values()) {
       if (fileRecord.shimData.has(shimPath)) {
         return {fileRecord, shimRecord: fileRecord.shimData.get(shimPath)!};
@@ -189,7 +279,7 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     return null;
   }
 
-  getTemplateMappingAtTcbLocation(tcbLocation: TcbLocation): FullTemplateMapping|null {
+  getSourceMappingAtTcbLocation(tcbLocation: TcbLocation): FullSourceMapping | null {
     const fileRecord = this.getFileRecordForTcbLocation(tcbLocation);
     if (fileRecord === null) {
       return null;
@@ -199,9 +289,12 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     if (shimSf === undefined) {
       return null;
     }
-    return getTemplateMapping(
-        shimSf, tcbLocation.positionInFile, fileRecord.sourceManager,
-        /*isDiagnosticsRequest*/ false);
+    return getSourceMapping(
+      shimSf,
+      tcbLocation.positionInFile,
+      fileRecord.sourceManager,
+      /*isDiagnosticsRequest*/ false,
+    );
   }
 
   generateAllTypeCheckBlocks() {
@@ -228,25 +321,33 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
 
       const typeCheckProgram = this.programDriver.getProgram();
 
-      const diagnostics: (ts.Diagnostic|null)[] = [];
+      const diagnostics: (ts.Diagnostic | null)[] = [];
       if (fileRecord.hasInlines) {
         const inlineSf = getSourceFileOrError(typeCheckProgram, sfPath);
-        diagnostics.push(...typeCheckProgram.getSemanticDiagnostics(inlineSf).map(
-            diag => convertDiagnostic(diag, fileRecord.sourceManager)));
+        diagnostics.push(
+          ...typeCheckProgram
+            .getSemanticDiagnostics(inlineSf)
+            .map((diag) => convertDiagnostic(diag, fileRecord.sourceManager)),
+        );
       }
 
       for (const [shimPath, shimRecord] of fileRecord.shimData) {
         const shimSf = getSourceFileOrError(typeCheckProgram, shimPath);
-        diagnostics.push(...typeCheckProgram.getSemanticDiagnostics(shimSf).map(
-            diag => convertDiagnostic(diag, fileRecord.sourceManager)));
+        diagnostics.push(
+          ...typeCheckProgram
+            .getSemanticDiagnostics(shimSf)
+            .map((diag) => convertDiagnostic(diag, fileRecord.sourceManager)),
+        );
         diagnostics.push(...shimRecord.genesisDiagnostics);
 
-        for (const templateData of shimRecord.templates.values()) {
-          diagnostics.push(...templateData.templateDiagnostics);
+        for (const templateData of shimRecord.data.values()) {
+          diagnostics.push(...templateData.templateParsingDiagnostics);
         }
       }
 
-      return diagnostics.filter((diag: ts.Diagnostic|null): diag is ts.Diagnostic => diag !== null);
+      return diagnostics.filter(
+        (diag: ts.Diagnostic | null): diag is ts.Diagnostic => diag !== null,
+      );
     });
   }
 
@@ -264,67 +365,82 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
         return [];
       }
 
-      const templateId = fileRecord.sourceManager.getTemplateId(component);
+      const id = fileRecord.sourceManager.getTypeCheckId(component);
       const shimRecord = fileRecord.shimData.get(shimPath)!;
 
       const typeCheckProgram = this.programDriver.getProgram();
 
-      const diagnostics: (TemplateDiagnostic|null)[] = [];
+      const diagnostics: (TemplateDiagnostic | null)[] = [];
       if (shimRecord.hasInlines) {
         const inlineSf = getSourceFileOrError(typeCheckProgram, sfPath);
-        diagnostics.push(...typeCheckProgram.getSemanticDiagnostics(inlineSf).map(
-            diag => convertDiagnostic(diag, fileRecord.sourceManager)));
+        diagnostics.push(
+          ...typeCheckProgram
+            .getSemanticDiagnostics(inlineSf)
+            .map((diag) => convertDiagnostic(diag, fileRecord.sourceManager)),
+        );
       }
 
       const shimSf = getSourceFileOrError(typeCheckProgram, shimPath);
-      diagnostics.push(...typeCheckProgram.getSemanticDiagnostics(shimSf).map(
-          diag => convertDiagnostic(diag, fileRecord.sourceManager)));
+      diagnostics.push(
+        ...typeCheckProgram
+          .getSemanticDiagnostics(shimSf)
+          .map((diag) => convertDiagnostic(diag, fileRecord.sourceManager)),
+      );
       diagnostics.push(...shimRecord.genesisDiagnostics);
 
-      for (const templateData of shimRecord.templates.values()) {
-        diagnostics.push(...templateData.templateDiagnostics);
+      for (const templateData of shimRecord.data.values()) {
+        diagnostics.push(...templateData.templateParsingDiagnostics);
       }
 
       return diagnostics.filter(
-          (diag: TemplateDiagnostic|null): diag is TemplateDiagnostic =>
-              diag !== null && diag.templateId === templateId);
+        (diag: TemplateDiagnostic | null): diag is TemplateDiagnostic =>
+          diag !== null && diag.typeCheckId === id,
+      );
     });
   }
 
-  getTypeCheckBlock(component: ts.ClassDeclaration): ts.Node|null {
+  getTypeCheckBlock(component: ts.ClassDeclaration): ts.Node | null {
     return this.getLatestComponentState(component).tcb;
   }
 
   getGlobalCompletions(
-      context: TmplAstTemplate|null, component: ts.ClassDeclaration,
-      node: AST|TmplAstNode): GlobalCompletion|null {
+    context: TmplAstTemplate | null,
+    component: ts.ClassDeclaration,
+    node: AST | TmplAstNode,
+  ): GlobalCompletion | null {
     const engine = this.getOrCreateCompletionEngine(component);
     if (engine === null) {
       return null;
     }
-    return this.perf.inPhase(
-        PerfPhase.TtcAutocompletion, () => engine.getGlobalCompletions(context, node));
+    return this.perf.inPhase(PerfPhase.TtcAutocompletion, () =>
+      engine.getGlobalCompletions(context, node),
+    );
   }
 
   getExpressionCompletionLocation(
-      ast: PropertyRead|SafePropertyRead, component: ts.ClassDeclaration): TcbLocation|null {
+    ast: PropertyRead | SafePropertyRead,
+    component: ts.ClassDeclaration,
+  ): TcbLocation | null {
     const engine = this.getOrCreateCompletionEngine(component);
     if (engine === null) {
       return null;
     }
-    return this.perf.inPhase(
-        PerfPhase.TtcAutocompletion, () => engine.getExpressionCompletionLocation(ast));
+    return this.perf.inPhase(PerfPhase.TtcAutocompletion, () =>
+      engine.getExpressionCompletionLocation(ast),
+    );
   }
 
   getLiteralCompletionLocation(
-      node: LiteralPrimitive|TmplAstTextAttribute, component: ts.ClassDeclaration): TcbLocation
-      |null {
+    node: LiteralPrimitive | TmplAstTextAttribute,
+    component: ts.ClassDeclaration,
+  ): TcbLocation | null {
     const engine = this.getOrCreateCompletionEngine(component);
     if (engine === null) {
       return null;
     }
-    return this.perf.inPhase(
-        PerfPhase.TtcAutocompletion, () => engine.getLiteralCompletionLocation(node));
+    return this.perf.inPhase(PerfPhase.TtcAutocompletion, () =>
+      engine.getLiteralCompletionLocation(node),
+    );
   }
 
   invalidateClass(clazz: ts.ClassDeclaration): void {
@@ -337,7 +453,7 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     const sfPath = absoluteFromSourceFile(sf);
     const shimPath = TypeCheckShimGenerator.shimFor(sfPath);
     const fileData = this.getFileData(sfPath);
-    const templateId = fileData.sourceManager.getTemplateId(clazz);
+    const id = fileData.sourceManager.getTypeCheckId(clazz);
 
     fileData.shimData.delete(shimPath);
     fileData.isComplete = false;
@@ -345,28 +461,45 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     this.isComplete = false;
   }
 
+  getExpressionTarget(expression: AST, clazz: ts.ClassDeclaration): TemplateEntity | null {
+    return (
+      this.getLatestComponentState(clazz).data?.boundTarget.getExpressionTarget(expression) ?? null
+    );
+  }
+
   makeTemplateDiagnostic<T extends ErrorCode>(
-      clazz: ts.ClassDeclaration, sourceSpan: ParseSourceSpan, category: ts.DiagnosticCategory,
-      errorCode: T, message: string, relatedInformation?: {
-        text: string,
-        start: number,
-        end: number,
-        sourceFile: ts.SourceFile,
-      }[]): NgTemplateDiagnostic<T> {
+    clazz: ts.ClassDeclaration,
+    sourceSpan: ParseSourceSpan,
+    category: ts.DiagnosticCategory,
+    errorCode: T,
+    message: string,
+    relatedInformation?: {
+      text: string;
+      start: number;
+      end: number;
+      sourceFile: ts.SourceFile;
+    }[],
+  ): NgTemplateDiagnostic<T> {
     const sfPath = absoluteFromSourceFile(clazz.getSourceFile());
     const fileRecord = this.state.get(sfPath)!;
-    const templateId = fileRecord.sourceManager.getTemplateId(clazz);
-    const mapping = fileRecord.sourceManager.getSourceMapping(templateId);
+    const id = fileRecord.sourceManager.getTypeCheckId(clazz);
+    const mapping = fileRecord.sourceManager.getTemplateSourceMapping(id);
 
     return {
       ...makeTemplateDiagnostic(
-          templateId, mapping, sourceSpan, category, ngErrorCode(errorCode), message,
-          relatedInformation),
-      __ngCode: errorCode
+        id,
+        mapping,
+        sourceSpan,
+        category,
+        ngErrorCode(errorCode),
+        message,
+        relatedInformation,
+      ),
+      __ngCode: errorCode,
     };
   }
 
-  private getOrCreateCompletionEngine(component: ts.ClassDeclaration): CompletionEngine|null {
+  private getOrCreateCompletionEngine(component: ts.ClassDeclaration): CompletionEngine | null {
     if (this.completionCache.has(component)) {
       return this.completionCache.get(component)!;
     }
@@ -478,10 +611,18 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
   }
 
   private newContext(host: TypeCheckingHost): TypeCheckContextImpl {
-    const inlining =
-        this.programDriver.supportsInlineOperations ? InliningMode.InlineOps : InliningMode.Error;
+    const inlining = this.programDriver.supportsInlineOperations
+      ? InliningMode.InlineOps
+      : InliningMode.Error;
     return new TypeCheckContextImpl(
-        this.config, this.compilerHost, this.refEmitter, this.reflector, host, inlining, this.perf);
+      this.config,
+      this.compilerHost,
+      this.refEmitter,
+      this.reflector,
+      host,
+      inlining,
+      this.perf,
+    );
   }
 
   /**
@@ -524,16 +665,24 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     if (!this.state.has(path)) {
       this.state.set(path, {
         hasInlines: false,
-        sourceManager: new TemplateSourceManager(),
+        sourceManager: new DirectiveSourceManager(),
         isComplete: false,
         shimData: new Map(),
       });
     }
     return this.state.get(path)!;
   }
-  getSymbolOfNode(node: TmplAstTemplate, component: ts.ClassDeclaration): TemplateSymbol|null;
-  getSymbolOfNode(node: TmplAstElement, component: ts.ClassDeclaration): ElementSymbol|null;
-  getSymbolOfNode(node: AST|TmplAstNode, component: ts.ClassDeclaration): Symbol|null {
+  getSymbolOfNode(node: TmplAstTemplate, component: ts.ClassDeclaration): TemplateSymbol | null;
+  getSymbolOfNode(node: TmplAstElement, component: ts.ClassDeclaration): ElementSymbol | null;
+  getSymbolOfNode(
+    node: TmplAstComponent,
+    component: ts.ClassDeclaration,
+  ): SelectorlessComponentSymbol | null;
+  getSymbolOfNode(
+    node: TmplAstDirective,
+    component: ts.ClassDeclaration,
+  ): SelectorlessDirectiveSymbol | null;
+  getSymbolOfNode(node: AST | TmplAstNode, component: ts.ClassDeclaration): Symbol | null {
     const builder = this.getOrCreateSymbolBuilder(component);
     if (builder === null) {
       return null;
@@ -541,7 +690,7 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     return this.perf.inPhase(PerfPhase.TtcSymbol, () => builder.getSymbol(node));
   }
 
-  private getOrCreateSymbolBuilder(component: ts.ClassDeclaration): SymbolBuilder|null {
+  private getOrCreateSymbolBuilder(component: ts.ClassDeclaration): SymbolBuilder | null {
     if (this.symbolBuilderCache.has(component)) {
       return this.symbolBuilderCache.get(component)!;
     }
@@ -552,19 +701,33 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     }
 
     const builder = new SymbolBuilder(
-        tcbPath, tcbIsShim, tcb, data, this.componentScopeReader,
-        () => this.programDriver.getProgram().getTypeChecker());
+      tcbPath,
+      tcbIsShim,
+      tcb,
+      data,
+      this.componentScopeReader,
+      () => this.programDriver.getProgram().getTypeChecker(),
+    );
     this.symbolBuilderCache.set(component, builder);
     return builder;
   }
 
   getPotentialTemplateDirectives(component: ts.ClassDeclaration): PotentialDirective[] {
+    const scope = this.getComponentScope(component);
+
+    // Don't resolve directives for selectorless components since they're already in the file.
+    if (scope?.kind === ComponentScopeKind.Selectorless) {
+      return [];
+    }
+
     const typeChecker = this.programDriver.getProgram().getTypeChecker();
-    const inScopeDirectives = this.getScopeData(component)?.directives ?? [];
     const resultingDirectives = new Map<ClassDeclaration<DeclarationNode>, PotentialDirective>();
-    // First, all in scope directives can be used.
-    for (const d of inScopeDirectives) {
-      resultingDirectives.set(d.ref.node, d);
+    if (scope !== null) {
+      const inScopeDirectives = this.getScopeData(component, scope)?.directives ?? [];
+      // First, all in scope directives can be used.
+      for (const d of inScopeDirectives) {
+        resultingDirectives.set(d.ref.node, d);
+      }
     }
     // Any additional directives found from the global registry can be used, but are not in scope.
     // In the future, we can also walk other registries for .d.ts files, or traverse the
@@ -581,12 +744,21 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
   }
 
   getPotentialPipes(component: ts.ClassDeclaration): PotentialPipe[] {
+    const scope = this.getComponentScope(component);
+
+    // Don't resolve pipes for selectorless components since they're already in the file.
+    if (scope?.kind === ComponentScopeKind.Selectorless) {
+      return [];
+    }
+
     // Very similar to the above `getPotentialTemplateDirectives`, but on pipes.
     const typeChecker = this.programDriver.getProgram().getTypeChecker();
-    const inScopePipes = this.getScopeData(component)?.pipes ?? [];
     const resultingPipes = new Map<ClassDeclaration<DeclarationNode>, PotentialPipe>();
-    for (const p of inScopePipes) {
-      resultingPipes.set(p.ref.node, p);
+    if (scope !== null) {
+      const inScopePipes = this.getScopeData(component, scope)?.pipes ?? [];
+      for (const p of inScopePipes) {
+        resultingPipes.set(p.ref.node, p);
+      }
     }
     for (const pipeClass of this.localMetaReader.getKnown(MetaKind.Pipe)) {
       const pipeMeta = this.metaReader.getPipeMetadata(new Reference(pipeClass));
@@ -599,54 +771,53 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     return Array.from(resultingPipes.values());
   }
 
-  getDirectiveMetadata(dir: ts.ClassDeclaration): TypeCheckableDirectiveMeta|null {
+  getDirectiveMetadata(dir: ts.ClassDeclaration): TypeCheckableDirectiveMeta | null {
     if (!isNamedClassDeclaration(dir)) {
       return null;
     }
     return this.typeCheckScopeRegistry.getTypeCheckDirectiveMetadata(new Reference(dir));
   }
 
-  getNgModuleMetadata(module: ts.ClassDeclaration): NgModuleMeta|null {
+  getNgModuleMetadata(module: ts.ClassDeclaration): NgModuleMeta | null {
     if (!isNamedClassDeclaration(module)) {
       return null;
     }
     return this.metaReader.getNgModuleMetadata(new Reference(module));
   }
 
-  getPipeMetadata(pipe: ts.ClassDeclaration): PipeMeta|null {
+  getPipeMetadata(pipe: ts.ClassDeclaration): PipeMeta | null {
     if (!isNamedClassDeclaration(pipe)) {
       return null;
     }
     return this.metaReader.getPipeMetadata(new Reference(pipe));
   }
 
-  getPotentialElementTags(component: ts.ClassDeclaration): Map<string, PotentialDirective|null> {
+  getPotentialElementTags(component: ts.ClassDeclaration): Map<string, PotentialDirective | null> {
     if (this.elementTagCache.has(component)) {
       return this.elementTagCache.get(component)!;
     }
 
-    const tagMap = new Map<string, PotentialDirective|null>();
+    const tagMap = new Map<string, PotentialDirective | null>();
 
     for (const tag of REGISTRY.allKnownElementNames()) {
       tagMap.set(tag, null);
     }
 
-    const scope = this.getScopeData(component);
-    if (scope !== null) {
-      for (const directive of scope.directives) {
-        if (directive.selector === null) {
+    const potentialDirectives = this.getPotentialTemplateDirectives(component);
+
+    for (const directive of potentialDirectives) {
+      if (directive.selector === null) {
+        continue;
+      }
+
+      for (const selector of CssSelector.parse(directive.selector)) {
+        if (selector.element === null || tagMap.has(selector.element)) {
+          // Skip this directive if it doesn't match an element tag, or if another directive has
+          // already been included with the same element name.
           continue;
         }
 
-        for (const selector of CssSelector.parse(directive.selector)) {
-          if (selector.element === null || tagMap.has(selector.element)) {
-            // Skip this directive if it doesn't match an element tag, or if another directive has
-            // already been included with the same element name.
-            continue;
-          }
-
-          tagMap.set(selector.element, directive);
-        }
+        tagMap.set(selector.element, directive);
       }
     }
 
@@ -654,19 +825,19 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     return tagMap;
   }
 
-  getPotentialDomBindings(tagName: string): {attribute: string, property: string}[] {
+  getPotentialDomBindings(tagName: string): {attribute: string; property: string}[] {
     const attributes = REGISTRY.allKnownAttributesOfElement(tagName);
-    return attributes.map(attribute => ({
-                            attribute,
-                            property: REGISTRY.getMappedPropName(attribute),
-                          }));
+    return attributes.map((attribute) => ({
+      attribute,
+      property: REGISTRY.getMappedPropName(attribute),
+    }));
   }
 
   getPotentialDomEvents(tagName: string): string[] {
     return REGISTRY.allKnownEventsOfElement(tagName);
   }
 
-  getPrimaryAngularDecorator(target: ts.ClassDeclaration): ts.Decorator|null {
+  getPrimaryAngularDecorator(target: ts.ClassDeclaration): ts.Decorator | null {
     this.ensureAllShimsForOneFile(target.getSourceFile());
 
     if (!isNamedClassDeclaration(target)) {
@@ -691,7 +862,7 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     return null;
   }
 
-  getOwningNgModule(component: ts.ClassDeclaration): ts.ClassDeclaration|null {
+  getOwningNgModule(component: ts.ClassDeclaration): ts.ClassDeclaration | null {
     if (!isNamedClassDeclaration(component)) {
       return null;
     }
@@ -702,8 +873,11 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     }
 
     const scope = this.componentScopeReader.getScopeForComponent(component);
-    if (scope === null || scope.kind !== ComponentScopeKind.NgModule ||
-        !isNamedClassDeclaration(scope.ngModule)) {
+    if (
+      scope === null ||
+      scope.kind !== ComponentScopeKind.NgModule ||
+      !isNamedClassDeclaration(scope.ngModule)
+    ) {
       return null;
     }
 
@@ -711,8 +885,10 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
   }
 
   private emit(
-      kind: PotentialImportKind, refTo: Reference<ClassDeclaration>,
-      inContext: ts.ClassDeclaration): PotentialImport|null {
+    kind: PotentialImportKind,
+    refTo: Reference<ClassDeclaration>,
+    inContext: ts.Node,
+  ): PotentialImport | null {
     const emittedRef = this.refEmitter.emit(refTo, inContext.getSourceFile());
     if (emittedRef.kind === ReferenceEmitKind.Failed) {
       return null;
@@ -726,11 +902,11 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
 
       let isForwardReference = false;
       if (emitted.node.getStart() > inContext.getStart()) {
-        const declaration = this.programDriver.getProgram()
-                                .getTypeChecker()
-                                .getTypeAtLocation(emitted.node)
-                                .getSymbol()
-                                ?.declarations?.[0];
+        const declaration = this.programDriver
+          .getProgram()
+          .getTypeChecker()
+          .getTypeAtLocation(emitted.node)
+          .getSymbol()?.declarations?.[0];
         if (declaration && declaration.getSourceFile() === inContext.getSourceFile()) {
           isForwardReference = true;
         }
@@ -738,8 +914,10 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
       // An appropriate identifier is already in scope.
       return {kind, symbolName: emitted.node.text, isForwardReference};
     } else if (
-        emitted instanceof ExternalExpr && emitted.value.moduleName !== null &&
-        emitted.value.name !== null) {
+      emitted instanceof ExternalExpr &&
+      emitted.value.moduleName !== null &&
+      emitted.value.name !== null
+    ) {
       return {
         kind,
         moduleSpecifier: emitted.value.moduleName,
@@ -751,12 +929,14 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
   }
 
   getPotentialImportsFor(
-      toImport: Reference<ClassDeclaration>, inContext: ts.ClassDeclaration,
-      importMode: PotentialImportMode): ReadonlyArray<PotentialImport> {
+    toImport: Reference<ClassDeclaration>,
+    inContext: ts.Node,
+    importMode: PotentialImportMode,
+  ): ReadonlyArray<PotentialImport> {
     const imports: PotentialImport[] = [];
 
     const meta =
-        this.metaReader.getDirectiveMetadata(toImport) ?? this.metaReader.getPipeMetadata(toImport);
+      this.metaReader.getDirectiveMetadata(toImport) ?? this.metaReader.getPipeMetadata(toImport);
     if (meta === null) {
       return imports;
     }
@@ -781,29 +961,33 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     return imports;
   }
 
-  private getScopeData(component: ts.ClassDeclaration): ScopeData|null {
+  private getComponentScope(component: ts.ClassDeclaration): ComponentScope | null {
+    if (!isNamedClassDeclaration(component)) {
+      throw new Error(`AssertionError: components must have names`);
+    }
+    return this.componentScopeReader.getScopeForComponent(component);
+  }
+
+  private getScopeData(
+    component: ts.ClassDeclaration,
+    scope: LocalModuleScope | StandaloneScope,
+  ): ScopeData | null {
     if (this.scopeCache.has(component)) {
       return this.scopeCache.get(component)!;
     }
 
-    if (!isNamedClassDeclaration(component)) {
-      throw new Error(`AssertionError: components must have names`);
-    }
-
-    const scope = this.componentScopeReader.getScopeForComponent(component);
-    if (scope === null) {
-      return null;
-    }
-
-    const dependencies = scope.kind === ComponentScopeKind.NgModule ?
-        scope.compilation.dependencies :
-        scope.dependencies;
+    const dependencies =
+      scope.kind === ComponentScopeKind.NgModule
+        ? scope.compilation.dependencies
+        : scope.dependencies;
 
     const data: ScopeData = {
       directives: [],
       pipes: [],
-      isPoisoned: scope.kind === ComponentScopeKind.NgModule ? scope.compilation.isPoisoned :
-                                                               scope.isPoisoned,
+      isPoisoned:
+        scope.kind === ComponentScopeKind.NgModule
+          ? scope.compilation.isPoisoned
+          : scope.isPoisoned,
     };
 
     const typeChecker = this.programDriver.getProgram().getTypeChecker();
@@ -823,8 +1007,10 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     return data;
   }
 
-  private scopeDataOfDirectiveMeta(typeChecker: ts.TypeChecker, dep: DirectiveMeta):
-      Omit<PotentialDirective, 'isInScope'>|null {
+  private scopeDataOfDirectiveMeta(
+    typeChecker: ts.TypeChecker,
+    dep: DirectiveMeta,
+  ): Omit<PotentialDirective, 'isInScope'> | null {
     if (dep.selector === null) {
       // Skip this directive, it can't be added to a template anyway.
       return null;
@@ -834,7 +1020,7 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
       return null;
     }
 
-    let ngModule: ClassDeclaration|null = null;
+    let ngModule: ClassDeclaration | null = null;
     const moduleScopeOfDir = this.componentScopeReader.getScopeForComponent(dep.ref.node);
     if (moduleScopeOfDir !== null && moduleScopeOfDir.kind === ComponentScopeKind.NgModule) {
       ngModule = moduleScopeOfDir.ngModule;
@@ -850,8 +1036,10 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
     };
   }
 
-  private scopeDataOfPipeMeta(typeChecker: ts.TypeChecker, dep: PipeMeta):
-      Omit<PotentialPipe, 'isInScope'>|null {
+  private scopeDataOfPipeMeta(
+    typeChecker: ts.TypeChecker,
+    dep: PipeMeta,
+  ): Omit<PotentialPipe, 'isInScope'> | null {
     const tsSymbol = typeChecker.getSymbolAtLocation(dep.ref.node.name);
     if (tsSymbol === undefined) {
       return null;
@@ -865,7 +1053,9 @@ export class TemplateTypeCheckerImpl implements TemplateTypeChecker {
 }
 
 function convertDiagnostic(
-    diag: ts.Diagnostic, sourceResolver: TemplateSourceResolver): TemplateDiagnostic|null {
+  diag: ts.Diagnostic,
+  sourceResolver: TypeCheckSourceResolver,
+): TemplateDiagnostic | null {
   if (!shouldReportDiagnostic(diag)) {
     return null;
   }
@@ -884,10 +1074,10 @@ export interface FileTypeCheckingData {
   hasInlines: boolean;
 
   /**
-   * Source mapping information for mapping diagnostics from inlined type check blocks back to the
-   * original template.
+   * Information for mapping diagnostics from inlined type check blocks
+   * back to their original sources.
    */
-  sourceManager: TemplateSourceManager;
+  sourceManager: DirectiveSourceManager;
 
   /**
    * Data for each shim generated from this input file.
@@ -910,11 +1100,11 @@ export interface FileTypeCheckingData {
 class WholeProgramTypeCheckingHost implements TypeCheckingHost {
   constructor(private impl: TemplateTypeCheckerImpl) {}
 
-  getSourceManager(sfPath: AbsoluteFsPath): TemplateSourceManager {
+  getSourceManager(sfPath: AbsoluteFsPath): DirectiveSourceManager {
     return this.impl.getFileData(sfPath).sourceManager;
   }
 
-  shouldCheckComponent(node: ts.ClassDeclaration): boolean {
+  shouldCheckClass(node: ts.ClassDeclaration): boolean {
     const sfPath = absoluteFromSourceFile(node.getSourceFile());
     const shimPath = TypeCheckShimGenerator.shimFor(sfPath);
     const fileData = this.impl.getFileData(sfPath);
@@ -942,8 +1132,10 @@ class SingleFileTypeCheckingHost implements TypeCheckingHost {
   private seenInlines = false;
 
   constructor(
-      protected sfPath: AbsoluteFsPath, protected fileData: FileTypeCheckingData,
-      protected impl: TemplateTypeCheckerImpl) {}
+    protected sfPath: AbsoluteFsPath,
+    protected fileData: FileTypeCheckingData,
+    protected impl: TemplateTypeCheckerImpl,
+  ) {}
 
   private assertPath(sfPath: AbsoluteFsPath): void {
     if (this.sfPath !== sfPath) {
@@ -951,12 +1143,12 @@ class SingleFileTypeCheckingHost implements TypeCheckingHost {
     }
   }
 
-  getSourceManager(sfPath: AbsoluteFsPath): TemplateSourceManager {
+  getSourceManager(sfPath: AbsoluteFsPath): DirectiveSourceManager {
     this.assertPath(sfPath);
     return this.fileData.sourceManager;
   }
 
-  shouldCheckComponent(node: ts.ClassDeclaration): boolean {
+  shouldCheckClass(node: ts.ClassDeclaration): boolean {
     if (this.sfPath !== absoluteFromSourceFile(node.getSourceFile())) {
       return false;
     }
@@ -999,8 +1191,11 @@ class SingleFileTypeCheckingHost implements TypeCheckingHost {
  */
 class SingleShimTypeCheckingHost extends SingleFileTypeCheckingHost {
   constructor(
-      sfPath: AbsoluteFsPath, fileData: FileTypeCheckingData, impl: TemplateTypeCheckerImpl,
-      private shimPath: AbsoluteFsPath) {
+    sfPath: AbsoluteFsPath,
+    fileData: FileTypeCheckingData,
+    impl: TemplateTypeCheckerImpl,
+    private shimPath: AbsoluteFsPath,
+  ) {
     super(sfPath, fileData, impl);
   }
 

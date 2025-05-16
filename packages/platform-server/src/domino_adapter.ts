@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {ɵsetRootDomAdapter as setRootDomAdapter} from '@angular/common';
@@ -13,8 +13,9 @@ import domino from './bundled-domino';
 
 export function setDomTypes() {
   // Make all Domino types available in the global env.
-  Object.assign(global, domino.impl);
-  (global as any)['KeyboardEvent'] = domino.impl.Event;
+  // NB: Any changes here should also be done in `packages/platform-server/init/src/shims.ts`.
+  Object.assign(globalThis, domino.impl);
+  (globalThis as any)['KeyboardEvent'] = domino.impl.Event;
 }
 
 /**
@@ -64,7 +65,7 @@ export class DominoAdapter extends BrowserDomAdapter {
   }
 
   /** @deprecated No longer being used in Ivy code. To be removed in version 14. */
-  override getGlobalEventTarget(doc: Document, target: string): EventTarget|null {
+  override getGlobalEventTarget(doc: Document, target: string): EventTarget | null {
     if (target === 'window') {
       return doc.defaultView;
     }
@@ -78,8 +79,24 @@ export class DominoAdapter extends BrowserDomAdapter {
   }
 
   override getBaseHref(doc: Document): string {
-    // TODO(alxhub): Need relative path logic from BrowserDomAdapter here?
-    return doc.documentElement!.querySelector('base')?.getAttribute('href') || '';
+    const length = doc.head.children.length;
+
+    // The `<base>` can only be a direct child of `<head>` so we can save some
+    // execution time by looking through them directly instead of querying for it.
+    // See: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/base
+    // Note that we can't cache the `href` value itself, because this method gets called with a
+    // different document every time which means that in theory the value can be different too.
+    for (let i = 0; i < length; i++) {
+      const child = doc.head.children[i];
+
+      // Tag names are always uppercase for HTML nodes.
+      if (child.tagName === 'BASE') {
+        // TODO(alxhub): Need relative path logic from BrowserDomAdapter here?
+        return child.getAttribute('href') || '';
+      }
+    }
+
+    return '';
   }
 
   override dispatchEvent(el: Node, evt: any) {

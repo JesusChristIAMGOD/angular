@@ -3,19 +3,18 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {bootstrapApplication} from '@angular/platform-browser';
 import {provideAnimations} from '@angular/platform-browser/animations';
 import {provideRouter} from '@angular/router';
-import {ApplicationEnvironment, ApplicationOperations} from 'ng-devtools';
+import {ApplicationEnvironment, ApplicationOperations} from '../../ng-devtools';
 
 import {DemoApplicationEnvironment} from '../../../src/demo-application-environment';
 import {DemoApplicationOperations} from '../../../src/demo-application-operations';
 
 import {AppComponent} from './app/app.component';
-
 
 bootstrapApplication(AppComponent, {
   providers: [
@@ -24,7 +23,7 @@ bootstrapApplication(AppComponent, {
       {
         path: '',
         loadComponent: () =>
-            import('./app/devtools-app/devtools-app.component').then((m) => m.DevToolsComponent),
+          import('./app/devtools-app/devtools-app.component').then((m) => m.DemoDevToolsComponent),
         pathMatch: 'full',
       },
       {
@@ -40,5 +39,5 @@ bootstrapApplication(AppComponent, {
       provide: ApplicationEnvironment,
       useClass: DemoApplicationEnvironment,
     },
-  ]
+  ],
 });
