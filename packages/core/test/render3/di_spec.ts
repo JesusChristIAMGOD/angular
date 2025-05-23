@@ -3,28 +3,33 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {Component, Directive, Self} from '@angular/core';
-import {createLView, createTView, getOrCreateTNode} from '@angular/core/src/render3/instructions/shared';
-import {NodeInjectorOffset} from '@angular/core/src/render3/interfaces/injector';
-import {TestBed} from '@angular/core/testing';
+import {Component, Directive, Self} from '../../src/core';
+import {NodeInjectorOffset} from '../../src/render3/interfaces/injector';
+import {TestBed} from '../../testing';
 
-import {bloomAdd, bloomHashBitOrFactory as bloomHash, bloomHasToken, getOrCreateNodeInjectorForNode} from '../../src/render3/di';
+import {
+  bloomAdd,
+  bloomHashBitOrFactory as bloomHash,
+  bloomHasToken,
+  getOrCreateNodeInjectorForNode,
+} from '../../src/render3/di';
 import {TNodeType} from '../../src/render3/interfaces/node';
-import {LViewFlags, TVIEW, TViewType} from '../../src/render3/interfaces/view';
+import {HEADER_OFFSET, LViewFlags, TVIEW, TViewType} from '../../src/render3/interfaces/view';
 import {enterView, leaveView} from '../../src/render3/state';
+import {getOrCreateTNode} from '../../src/render3/tnode_manipulation';
+import {createLView, createTView} from '../../src/render3/view/construction';
 
 describe('di', () => {
   describe('directive injection', () => {
     describe('flags', () => {
       it('should check only the current node with @Self even with false positive', () => {
-        @Directive({selector: '[notOnSelf]', standalone: true})
-        class DirNotOnSelf {
-        }
+        @Directive({selector: '[notOnSelf]'})
+        class DirNotOnSelf {}
 
-        @Directive({selector: '[tryInjectFromSelf]', standalone: true})
+        @Directive({selector: '[tryInjectFromSelf]'})
         class DirTryInjectFromSelf {
           constructor(@Self() private dir: DirNotOnSelf) {}
         }
@@ -35,16 +40,14 @@ describe('di', () => {
               <div tryInjectFromSelf></div>
             </div>
           `,
-          standalone: true,
           imports: [DirNotOnSelf, DirTryInjectFromSelf],
         })
-        class App {
-        }
+        class App {}
         expect(() => {
           TestBed.createComponent(App).detectChanges();
-        })
-            .toThrowError(
-                'NG0201: No provider for DirNotOnSelf found in NodeInjector. Find more at https://angular.io/errors/NG0201');
+        }).toThrowError(
+          'NG0201: No provider for DirNotOnSelf found in NodeInjector. Find more at https://angular.dev/errors/NG0201',
+        );
       });
     });
   });
@@ -140,14 +143,32 @@ describe('di', () => {
   describe('getOrCreateNodeInjector', () => {
     it('should handle initial undefined state', () => {
       const contentView = createLView(
-          null,
-          createTView(TViewType.Component, null, null, 1, 0, null, null, null, null, null, null),
-          {}, LViewFlags.CheckAlways, null, null,
-          {rendererFactory: {} as any, sanitizer: null, effectManager: null}, {} as any, null, null,
-          null);
+        null,
+        createTView(TViewType.Component, null, null, 1, 0, null, null, null, null, null, null),
+        {},
+        LViewFlags.CheckAlways,
+        null,
+        null,
+        {
+          rendererFactory: {} as any,
+          sanitizer: null,
+          changeDetectionScheduler: null,
+          ngReflect: false,
+        },
+        {} as any,
+        null,
+        null,
+        null,
+      );
       enterView(contentView);
       try {
-        const parentTNode = getOrCreateTNode(contentView[TVIEW], 0, TNodeType.Element, null, null);
+        const parentTNode = getOrCreateTNode(
+          contentView[TVIEW],
+          HEADER_OFFSET,
+          TNodeType.Element,
+          null,
+          null,
+        );
         // Simulate the situation where the previous parent is not initialized.
         // This happens on first bootstrap because we don't init existing values
         // so that we have smaller HelloWorld.

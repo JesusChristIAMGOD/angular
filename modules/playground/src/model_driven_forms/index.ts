@@ -3,21 +3,27 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 /* tslint:disable:no-console  */
 import {Component, Host, NgModule} from '@angular/core';
-import {AbstractControl, FormBuilder, FormGroup, FormGroupDirective, ReactiveFormsModule, UntypedFormBuilder, UntypedFormGroup, Validators} from '@angular/forms';
-import {BrowserModule} from '@angular/platform-browser';
-import {platformBrowserDynamic} from '@angular/platform-browser-dynamic';
-
-
+import {
+  AbstractControl,
+  FormBuilder,
+  FormGroup,
+  FormGroupDirective,
+  ReactiveFormsModule,
+  UntypedFormBuilder,
+  UntypedFormGroup,
+  Validators,
+} from '@angular/forms';
+import {BrowserModule, platformBrowser} from '@angular/platform-browser';
 
 /**
  * Custom validator.
  */
-function creditCardValidator(c: AbstractControl): {[key: string]: boolean} {
+function creditCardValidator(c: AbstractControl): {[key: string]: boolean} | null {
   if (c.value && /^\d{16}$/.test(c.value)) {
     return null;
   } else {
@@ -43,9 +49,8 @@ function creditCardValidator(c: AbstractControl): {[key: string]: boolean} {
 @Component({
   selector: 'show-error',
   inputs: ['controlPath: control', 'errorTypes: errors'],
-  template: `
-    <span *ngIf="errorMessage !== null">{{errorMessage}}</span>
-  `
+  template: ` <span *ngIf="errorMessage !== null">{{ errorMessage }}</span> `,
+  standalone: false,
 })
 export class ShowError {
   formDir: FormGroupDirective;
@@ -56,7 +61,7 @@ export class ShowError {
     this.formDir = formDir;
   }
 
-  get errorMessage(): string {
+  get errorMessage(): string | null {
     const form: FormGroup = this.formDir.form;
     const control = form.get(this.controlPath);
     if (control && control.touched) {
@@ -78,7 +83,6 @@ export class ShowError {
   }
 }
 
-
 @Component({
   selector: 'reactive-forms',
   viewProviders: [FormBuilder],
@@ -88,62 +92,62 @@ export class ShowError {
     <form (ngSubmit)="onSubmit()" [formGroup]="form" #f="ngForm">
       <p>
         <label for="firstName">First Name</label>
-        <input type="text" id="firstName" formControlName="firstName">
+        <input type="text" id="firstName" formControlName="firstName" />
         <show-error control="firstName" [errors]="['required']"></show-error>
       </p>
 
       <p>
         <label for="middleName">Middle Name</label>
-        <input type="text" id="middleName" formControlName="middleName">
+        <input type="text" id="middleName" formControlName="middleName" />
       </p>
 
       <p>
         <label for="lastName">Last Name</label>
-        <input type="text" id="lastName" formControlName="lastName">
+        <input type="text" id="lastName" formControlName="lastName" />
         <show-error control="lastName" [errors]="['required']"></show-error>
       </p>
 
       <p>
         <label for="country">Country</label>
         <select id="country" formControlName="country">
-          <option *ngFor="let c of countries" [value]="c">{{c}}</option>
+          <option *ngFor="let c of countries" [value]="c">{{ c }}</option>
         </select>
       </p>
 
       <p>
         <label for="creditCard">Credit Card</label>
-        <input type="text" id="creditCard" formControlName="creditCard">
+        <input type="text" id="creditCard" formControlName="creditCard" />
         <show-error control="creditCard" [errors]="['required', 'invalidCreditCard']"></show-error>
       </p>
 
       <p>
         <label for="amount">Amount</label>
-        <input type="number" id="amount" formControlName="amount">
+        <input type="number" id="amount" formControlName="amount" />
         <show-error control="amount" [errors]="['required']"></show-error>
       </p>
 
       <p>
         <label for="email">Email</label>
-        <input type="email" id="email" formControlName="email">
+        <input type="email" id="email" formControlName="email" />
         <show-error control="email" [errors]="['required']"></show-error>
       </p>
 
       <p>
         <label for="comments">Comments</label>
-        <textarea id="comments" formControlName="comments">
-        </textarea>
+        <textarea id="comments" formControlName="comments"> </textarea>
       </p>
 
       <button type="submit" [disabled]="!f.form.valid">Submit</button>
     </form>
-  `
+  `,
+  standalone: false,
 })
 export class ReactiveForms {
   form: UntypedFormGroup;
   countries = ['US', 'Canada'];
 
-  constructor(fb: UntypedFormBuilder) {
-    this.form = fb.group({
+  constructor(formBuilder: UntypedFormBuilder) {
+    this.form = formBuilder.group({
       'firstName': ['', Validators.required],
       'middleName': [''],
       'lastName': ['', Validators.required],
@@ -151,7 +155,7 @@ export class ReactiveForms {
       'creditCard': ['', Validators.compose([Validators.required, creditCardValidator])],
       'amount': [0, Validators.required],
       'email': ['', Validators.required],
-      'comments': ['']
+      'comments': [''],
     });
   }
 
@@ -164,9 +168,8 @@ export class ReactiveForms {
 @NgModule({
   bootstrap: [ReactiveForms],
   declarations: [ShowError, ReactiveForms],
-  imports: [BrowserModule, ReactiveFormsModule]
+  imports: [BrowserModule, ReactiveFormsModule],
 })
-export class ExampleModule {
-}
+export class ExampleModule {}
 
-platformBrowserDynamic().bootstrapModule(ExampleModule);
+platformBrowser().bootstrapModule(ExampleModule);

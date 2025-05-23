@@ -1,17 +1,13 @@
-import { TestBed } from '@angular/core/testing';
-import { RouterModule } from '@angular/router';
-import { AppComponent } from './app.component';
+import {TestBed} from '@angular/core/testing';
+import {RouterModule} from '@angular/router';
+import {AppComponent} from './app.component';
 
 describe('AppComponent', () => {
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [
-        RouterModule.forRoot([])
-      ],
-      declarations: [
-        AppComponent
-      ],
-    }).compileComponents();
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [RouterModule.forRoot([])],
+      declarations: [AppComponent],
+    });
   });
 
   it('should create the app', () => {
@@ -30,6 +26,8 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement;
-    expect(compiled.querySelector('.content span').textContent).toContain('trusted-types app is running!');
+    expect(compiled.querySelector('.content span').textContent).toContain(
+      'trusted-types app is running!',
+    );
   });
 });

@@ -3,11 +3,12 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {EnvironmentInjector} from '../di';
-import {LView} from '../render3/interfaces/view';
+import type {EnvironmentInjector} from '../di';
+import {isDestroyed} from '../render3/interfaces/type_checks';
+import type {LView} from '../render3/interfaces/view';
 import {getLView} from '../render3/state';
 import {removeLViewOnDestroy, storeLViewOnDestroy} from '../render3/util/view_utils';
 
@@ -31,7 +32,7 @@ export abstract class DestroyRef {
    *
    * @usageNotes
    * ### Example
-   * ```typescript
+   * ```ts
    * const destroyRef = inject(DestroyRef);
    *
    * // register a destroy callback
@@ -56,14 +57,34 @@ export abstract class DestroyRef {
   static __NG_ENV_ID__: (injector: EnvironmentInjector) => DestroyRef = (injector) => injector;
 }
 
-class NodeInjectorDestroyRef extends DestroyRef {
-  constructor(private _lView: LView) {
+export class NodeInjectorDestroyRef extends DestroyRef {
+  constructor(readonly _lView: LView) {
     super();
   }
 
   override onDestroy(callback: () => void): () => void {
-    storeLViewOnDestroy(this._lView, callback);
-    return () => removeLViewOnDestroy(this._lView, callback);
+    const lView = this._lView;
+
+    // Checking if `lView` is already destroyed before storing the `callback` enhances
+    // safety and integrity for applications.
+    // If `lView` is destroyed, we call the `callback` immediately to ensure that
+    // any necessary cleanup is handled gracefully.
+    // With this approach, we're providing better reliability in managing resources.
+    // One of the use cases is `takeUntilDestroyed`, which aims to replace `takeUntil`
+    // in existing applications. While `takeUntil` can be safely called once the view
+    // is destroyed — resulting in no errors and finalizing the subscription depending
+    // on whether a subject or replay subject is used, replacing it with
+    // `takeUntilDestroyed` introduces a breaking change, as it throws an error if
+    // the `lView` is destroyed (https://github.com/angular/angular/issues/54527).
+    if (isDestroyed(lView)) {
+      callback();
+      // We return a "noop" callback, which, when executed, does nothing because
+      // we haven't stored anything on the `lView`, and thus there's nothing to remove.
+      return () => {};
+    }
+
+    storeLViewOnDestroy(lView, callback);
+    return () => removeLViewOnDestroy(lView, callback);
   }
 }
 

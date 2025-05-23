@@ -1,35 +1,31 @@
+@use '../../../styles/typography';
+
 :host,
 .profiler-wrapper {
-  font-size: 1em;
   width: 100%;
   height: calc(100% - 30px);
-}
 
-.mat-card {
-  display: flex;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-  height: wrap-content;
-  margin: 0 !important;
-  padding: 5px !important;
-  box-shadow: none !important;
-  border-radius: 0;
+  p {
+    margin: 0;
+  }
 }
 
 .mat-icon {
   font-size: 18px;
+  top: 4px;
+  position: relative;
 }
 
 .profiler-control {
   cursor: pointer;
 
   &.recording-button {
-    color: #d83c34;
+    color: var(--dynamic-red-01);
   }
 }
 
 .instructions {
-  margin-bottom: 0 !important;
-  align-self: center;
+  @extend %body-01;
 
   &.hidden {
     display: none;
@@ -38,7 +34,6 @@
   input,
   span {
     margin-top: 5px;
-    font-size: 1em;
     cursor: pointer;
   }
 }
@@ -54,10 +49,7 @@
   height: 100%;
 }
 
-:host-context(.dark-theme) {
-  .profiler-control {
-    &.recording-button {
-      color: #ff625a;
-    }
-  }
+.mdc-card {
+  flex-direction: row;
+  align-items: center;
 }

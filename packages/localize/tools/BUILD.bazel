@@ -15,10 +15,9 @@ ts_library(
         "//packages/localize",
         "@npm//@babel/core",
         "@npm//@types/babel__core",
-        "@npm//@types/babel__traverse",
         "@npm//@types/node",
         "@npm//@types/yargs",
-        "@npm//fast-glob",
+        "@npm//tinyglobby",
     ],
 )
 
@@ -42,12 +41,12 @@ esbuild(
         "@angular/compiler-cli/private/localize",
         "@babel/core",
         "yargs",
-        "fast-glob",
+        "tinyglobby",
     ],
     format = "esm",
     platform = "node",
     splitting = True,
-    target = "node12",
+    target = "node20",
     deps = [
         ":tools",
     ],
