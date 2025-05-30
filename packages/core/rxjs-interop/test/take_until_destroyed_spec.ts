@@ -3,10 +3,10 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {DestroyRef, EnvironmentInjector, Injector, runInInjectionContext} from '@angular/core';
+import {DestroyRef, EnvironmentInjector, Injector, runInInjectionContext} from '../../src/core';
 import {BehaviorSubject} from 'rxjs';
 
 import {takeUntilDestroyed} from '../src/take_until_destroyed';
@@ -26,7 +26,7 @@ describe('takeUntilDestroyed', () => {
       },
       complete() {
         completed = true;
-      }
+      },
     });
 
     source$.next(1);
@@ -52,7 +52,7 @@ describe('takeUntilDestroyed', () => {
       },
       complete() {
         completed = true;
-      }
+      },
     });
 
     source$.next(1);

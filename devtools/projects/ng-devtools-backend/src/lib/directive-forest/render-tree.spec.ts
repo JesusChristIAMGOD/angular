@@ -3,41 +3,50 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
+import {
+  ɵDirectiveDebugMetadata as DirectiveDebugMetadata,
+  ɵFramework as Framework,
+  ɵFrameworkAgnosticGlobalUtils as FrameworkAgnosticGlobalUtils,
+} from '@angular/core';
 import {RTreeStrategy} from './render-tree';
 
 describe('render tree extraction', () => {
   let treeStrategy: RTreeStrategy;
   let directiveMap: Map<Node, any[]>;
   let componentMap: Map<Element, any>;
+  let directiveMetadataMap: Map<any, DirectiveDebugMetadata>;
 
   beforeEach(() => {
     treeStrategy = new RTreeStrategy();
     directiveMap = new Map();
     componentMap = new Map();
+    directiveMetadataMap = new Map();
 
     (window as any).ng = {
-      getDirectiveMetadata(): void{},
+      getDirectiveMetadata(dir: any): DirectiveDebugMetadata | null {
+        return directiveMetadataMap.get(dir) ?? null;
+      },
       getComponent(element: Element): any {
         return componentMap.get(element);
       },
       getDirectives(node: Node): any {
         return directiveMap.get(node) || [];
       },
-    };
+    } satisfies Partial<FrameworkAgnosticGlobalUtils>;
   });
 
   afterEach(() => delete (window as any).ng);
 
   it('should detect Angular Ivy apps', () => {
-    expect(treeStrategy.supports({})).toBeTrue();
+    expect(treeStrategy.supports()).toBeTrue();
   });
 
   it('should fail with detection of non-Ivy apps', () => {
     delete (window as any).ng.getDirectiveMetadata;
-    expect(treeStrategy.supports({})).toBeFalse();
+    expect(treeStrategy.supports()).toBeFalse();
   });
 
   it('should extract render tree from an empty element', () => {
@@ -105,5 +114,21 @@ describe('render tree extraction', () => {
     expect(rtree[0].children.length).toBe(1);
     expect(rtree[0].children[0].children.length).toBe(0);
     expect(rtree[1].component?.instance).toBe(siblingComponent);
+  });
+
+  it('should use component name from `ng.getDirectiveMetadata`', () => {
+    const appNode = document.createElement('app');
+
+    const appComponent = {};
+    componentMap.set(appNode, appComponent);
+    directiveMetadataMap.set(appComponent, {
+      framework: Framework.Angular,
+      name: 'AppComponent',
+      inputs: {},
+      outputs: {},
+    });
+
+    const rtree = treeStrategy.build(appNode);
+    expect(rtree[0].component!.name).toBe('AppComponent');
   });
 });

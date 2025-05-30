@@ -1,0 +1,18 @@
+packages:
+  - .
+  - adev/shared-docs/pipeline/api-gen
+  - modules
+  - packages/animations/
+  - packages/common/
+  - packages/compiler-cli/
+  - packages/compiler/
+  - packages/core/
+  - packages/core/test/bundling
+  - packages/forms/
+  - packages/platform-browser/
+  - packages/platform-browser-dynamic/
+  - packages/router/
+  - packages/localize/
+  - packages/upgrade/
+  - packages/zone.js/
+  - tools/bazel/rules_angular_store/

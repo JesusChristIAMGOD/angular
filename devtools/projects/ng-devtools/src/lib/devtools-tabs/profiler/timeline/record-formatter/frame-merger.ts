@@ -3,12 +3,17 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {DirectiveProfile, ElementProfile, ProfilerFrame} from 'protocol';
+import {
+  DirectiveProfile,
+  ElementProfile,
+  LifecycleProfile,
+  ProfilerFrame,
+} from '../../../../../../../protocol';
 
-const mergeProperty = (mergeInProp: number|undefined, value: number|undefined) => {
+const mergeProperty = (mergeInProp: number | undefined, value: number | undefined) => {
   if (mergeInProp === undefined) {
     return value;
   }
@@ -20,7 +25,8 @@ const mergeProperty = (mergeInProp: number|undefined, value: number|undefined) =
 
 const mergeDirective = (mergeIn: DirectiveProfile, second: DirectiveProfile) => {
   mergeIn.changeDetection = mergeProperty(mergeIn.changeDetection, second.changeDetection);
-  Object.keys(mergeIn.lifecycle).forEach((hook) => {
+  Object.keys(mergeIn.lifecycle).forEach((key) => {
+    const hook = key as keyof LifecycleProfile;
     mergeIn.lifecycle[hook] = mergeProperty(mergeIn.lifecycle[hook], second.lifecycle[hook]);
   });
 };
@@ -31,6 +37,7 @@ const mergeDirectives = (mergeIn: ElementProfile[], second: ElementProfile[]) =>
       mergeIn[i] = {
         children: [],
         directives: [],
+        type: 'element',
       };
     }
     second[i].directives.forEach((d, idx) => {
@@ -51,11 +58,11 @@ const mergeFrame = (mergeIn: ProfilerFrame, second: ProfilerFrame) => {
   mergeDirectives(mergeIn.directives, second.directives);
 };
 
-export const mergeFrames = (frames: ProfilerFrame[]): ProfilerFrame|null => {
+export const mergeFrames = (frames: ProfilerFrame[]): ProfilerFrame | null => {
   if (!frames || !frames.length) {
     return null;
   }
-  const first = JSON.parse(JSON.stringify(frames[0]));
+  const first = JSON.parse(JSON.stringify(frames[0])) as ProfilerFrame;
   for (let i = 1; i < frames.length; i++) {
     mergeFrame(first, frames[i]);
   }
