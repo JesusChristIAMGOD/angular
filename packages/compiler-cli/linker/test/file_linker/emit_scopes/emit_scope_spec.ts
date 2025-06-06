@@ -3,9 +3,9 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
-import * as o from '@angular/compiler/src/output/output_ast';
+import {outputAst as o} from '@angular/compiler';
 import ts from 'typescript';
 
 import {TypeScriptAstFactory} from '../../../../src/ngtsc/translator';
@@ -36,14 +36,12 @@ describe('EmitScope', () => {
 
       const def = emitScope.translateDefinition({
         expression: o.fn([], [], null, null, 'foo'),
-        statements: [
-          o.variable('testFn').callFn([]).toStmt(),
-        ],
+        statements: [o.variable('testFn').callFn([]).toStmt()],
       });
       expect(generate(def)).toEqual('function () { testFn(); return function foo() { }; }()');
     });
 
-    it('should use the `ngImport` idenfifier for imports when translating', () => {
+    it('should use the `ngImport` identifier for imports when translating', () => {
       const factory = new TypeScriptAstFactory(/* annotateForClosureCompiler */ false);
       const translator = new Translator<ts.Statement, ts.Expression>(factory);
       const ngImport = factory.createIdentifier('core');

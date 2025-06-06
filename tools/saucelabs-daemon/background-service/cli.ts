@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {customLaunchers} from '../../../browser-providers.conf';
@@ -12,11 +12,9 @@ import {Browser} from '../browser';
 import {SaucelabsDaemon} from './saucelabs-daemon';
 
 const args = process.argv.slice(2);
-const username = process.env.SAUCE_USERNAME;
-const accessKey = process.env.SAUCE_ACCESS_KEY;
-const tunnelIdentifier = process.env.SAUCE_TUNNEL_IDENTIFIER;
-
-const buildName = process.env.CIRCLECI ? `circleci-${process.env.CIRCLE_BUILD_NUM}` : 'localdev';
+const username = process.env['SAUCE_USERNAME'];
+const accessKey = process.env['SAUCE_ACCESS_KEY'];
+const tunnelIdentifier = process.env['SAUCE_TUNNEL_IDENTIFIER'];
 
 if (!username || !accessKey) {
   throw Error('Please set the `SAUCE_USERNAME` and `SAUCE_ACCESS_KEY` variables.');
@@ -45,13 +43,13 @@ if (!parallelExecutions) {
 
 // Start the daemon and launch the given browser
 const daemon = new SaucelabsDaemon(
-    username,
-    accessKey,
-    process.env.CIRCLE_BUILD_NUM!,
-    Object.values(customLaunchers) as Browser[],
-    parallelExecutions,
-    sauceConnect,
-    {tunnelIdentifier},
+  username,
+  accessKey,
+  process.env['CIRCLE_BUILD_NUM']!,
+  Object.values(customLaunchers) as Browser[],
+  parallelExecutions,
+  sauceConnect,
+  {tunnelIdentifier},
 );
 
 if (args.includes('--connect')) {

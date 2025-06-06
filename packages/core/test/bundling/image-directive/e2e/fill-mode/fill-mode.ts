@@ -3,11 +3,11 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {NgOptimizedImage} from '@angular/common';
-import {Component} from '@angular/core';
+import {Component} from '../../../../../src/core';
 
 @Component({
   selector: 'fill-mode-passing',
@@ -20,8 +20,7 @@ import {Component} from '@angular/core';
     </div>
   `,
 })
-export class FillModePassingComponent {
-}
+export class FillModePassingComponent {}
 @Component({
   selector: 'fill-mode-failing',
   standalone: true,
@@ -32,5 +31,4 @@ export class FillModePassingComponent {
     </div>
   `,
 })
-export class FillModeFailingComponent {
-}
+export class FillModeFailingComponent {}

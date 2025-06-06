@@ -3,14 +3,14 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 /**
  * @fileoverview
  * @suppress {globalThis}
  */
 
-import {isBrowser, isIE, isMix, isNode, ObjectGetPrototypeOf, patchOnProperties} from '../common/utils';
+import {isBrowser, isMix, isNode, ObjectGetPrototypeOf, patchOnProperties} from '../common/utils';
 
 export interface IgnoreProperty {
   target: any;
@@ -18,22 +18,29 @@ export interface IgnoreProperty {
 }
 
 export function filterProperties(
-    target: any, onProperties: string[], ignoreProperties: IgnoreProperty[]): string[] {
+  target: any,
+  onProperties: string[],
+  ignoreProperties: IgnoreProperty[],
+): string[] {
   if (!ignoreProperties || ignoreProperties.length === 0) {
     return onProperties;
   }
 
-  const tip: IgnoreProperty[] = ignoreProperties.filter(ip => ip.target === target);
-  if (!tip || tip.length === 0) {
+  const tip: IgnoreProperty[] = ignoreProperties.filter((ip) => ip.target === target);
+  if (tip.length === 0) {
     return onProperties;
   }
 
   const targetIgnoreProperties: string[] = tip[0].ignoreProperties;
-  return onProperties.filter(op => targetIgnoreProperties.indexOf(op) === -1);
+  return onProperties.filter((op) => targetIgnoreProperties.indexOf(op) === -1);
 }
 
 export function patchFilteredProperties(
-    target: any, onProperties: string[], ignoreProperties: IgnoreProperty[], prototype?: any) {
+  target: any,
+  onProperties: string[],
+  ignoreProperties: IgnoreProperty[],
+  prototype?: any,
+) {
   // check whether target is available, sometimes target will be undefined
   // because different browser or some 3rd party plugin.
   if (!target) {
@@ -49,8 +56,8 @@ export function patchFilteredProperties(
  */
 export function getOnEventNames(target: Object) {
   return Object.getOwnPropertyNames(target)
-      .filter(name => name.startsWith('on') && name.length > 2)
-      .map(name => name.substring(2));
+    .filter((name) => name.startsWith('on') && name.length > 2)
+    .map((name) => name.substring(2));
 }
 
 export function propertyDescriptorPatch(api: _ZonePrivate, _global: any) {
@@ -67,26 +74,48 @@ export function propertyDescriptorPatch(api: _ZonePrivate, _global: any) {
   if (isBrowser) {
     const internalWindow: any = window;
     patchTargets = patchTargets.concat([
-      'Document', 'SVGElement', 'Element', 'HTMLElement', 'HTMLBodyElement', 'HTMLMediaElement',
-      'HTMLFrameSetElement', 'HTMLFrameElement', 'HTMLIFrameElement', 'HTMLMarqueeElement', 'Worker'
+      'Document',
+      'SVGElement',
+      'Element',
+      'HTMLElement',
+      'HTMLBodyElement',
+      'HTMLMediaElement',
+      'HTMLFrameSetElement',
+      'HTMLFrameElement',
+      'HTMLIFrameElement',
+      'HTMLMarqueeElement',
+      'Worker',
     ]);
-    const ignoreErrorProperties =
-        isIE() ? [{target: internalWindow, ignoreProperties: ['error']}] : [];
-    // in IE/Edge, onProp not exist in window object, but in WindowPrototype
-    // so we need to pass WindowPrototype to check onProp exist or not
+    const ignoreErrorProperties: IgnoreProperty[] = [];
+    // In older browsers like IE or Edge, event handler properties (e.g., `onclick`)
+    // may not be defined directly on the `window` object but on its prototype (`WindowPrototype`).
+    // To ensure complete coverage, we use the prototype when checking
+    // for and patching these properties.
     patchFilteredProperties(
-        internalWindow, getOnEventNames(internalWindow),
-        ignoreProperties ? ignoreProperties.concat(ignoreErrorProperties) : ignoreProperties,
-        ObjectGetPrototypeOf(internalWindow));
+      internalWindow,
+      getOnEventNames(internalWindow),
+      ignoreProperties ? ignoreProperties.concat(ignoreErrorProperties) : ignoreProperties,
+      ObjectGetPrototypeOf(internalWindow),
+    );
   }
   patchTargets = patchTargets.concat([
-    'XMLHttpRequest', 'XMLHttpRequestEventTarget', 'IDBIndex', 'IDBRequest', 'IDBOpenDBRequest',
-    'IDBDatabase', 'IDBTransaction', 'IDBCursor', 'WebSocket'
+    'XMLHttpRequest',
+    'XMLHttpRequestEventTarget',
+    'IDBIndex',
+    'IDBRequest',
+    'IDBOpenDBRequest',
+    'IDBDatabase',
+    'IDBTransaction',
+    'IDBCursor',
+    'WebSocket',
   ]);
   for (let i = 0; i < patchTargets.length; i++) {
     const target = _global[patchTargets[i]];
-    target && target.prototype &&
-        patchFilteredProperties(
-            target.prototype, getOnEventNames(target.prototype), ignoreProperties);
+    target?.prototype &&
+      patchFilteredProperties(
+        target.prototype,
+        getOnEventNames(target.prototype),
+        ignoreProperties,
+      );
   }
 }
