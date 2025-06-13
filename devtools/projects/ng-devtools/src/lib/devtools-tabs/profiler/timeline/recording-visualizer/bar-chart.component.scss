@@ -7,7 +7,9 @@
   padding-bottom: 3px;
   opacity: 0.8;
   cursor: pointer;
-  transition: opacity 0.3s ease-out, width 0.3s ease;
+  transition:
+    opacity 0.3s ease-out,
+    width 0.3s ease;
 }
 
 .bar span {
@@ -18,6 +20,7 @@
   text-overflow: ellipsis;
   overflow: hidden;
   opacity: 1;
+  color: var(--color-text);
 }
 
 .bar:hover {
@@ -29,10 +32,4 @@
   width: calc(100% - 5px);
   height: 100%;
   display: block;
-}
-
-:host-context(.dark-theme) {
-  .bar span {
-    color: #bcc5ce;
-  }
 }

@@ -3,9 +3,9 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
-import {ɵmakeParsedTranslation, ɵParsedTranslation} from '@angular/localize';
+import {ɵmakeParsedTranslation, ɵParsedTranslation} from '../../../../../index';
 
 import {MessageRenderer} from './message_renderer';
 
@@ -27,7 +27,7 @@ export class TargetMessageRenderer implements MessageRenderer<ɵParsedTranslatio
   text(text: string): void {
     this.current.text += text;
   }
-  placeholder(name: string, body: string|undefined): void {
+  placeholder(name: string, body: string | undefined): void {
     this.renderPlaceholder(name);
   }
   startPlaceholder(name: string): void {

@@ -3,16 +3,15 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 import {AbsoluteSourceSpan, ParseSourceSpan} from '@angular/compiler';
 import ts from 'typescript';
 
-import {TemplateDiagnostic, TemplateId} from '../api';
+import {TemplateDiagnostic, TypeCheckId} from '../api';
 import {makeTemplateDiagnostic} from '../diagnostics';
 
-import {getTemplateMapping, TemplateSourceResolver} from './tcb_util';
-
+import {getSourceMapping, TypeCheckSourceResolver} from './tcb_util';
 
 /**
  * Wraps the node in parenthesis such that inserted span comments become attached to the proper
@@ -43,7 +42,7 @@ export function wrapForTypeChecker(expr: ts.Expression): ts.Expression {
  * Adds a synthetic comment to the expression that represents the parse span of the provided node.
  * This comment can later be retrieved as trivia of a node to recover original source locations.
  */
-export function addParseSpanInfo(node: ts.Node, span: AbsoluteSourceSpan|ParseSourceSpan): void {
+export function addParseSpanInfo(node: ts.Node, span: AbsoluteSourceSpan | ParseSourceSpan): void {
   let commentText: string;
   if (span instanceof AbsoluteSourceSpan) {
     commentText = `${span.start},${span.end}`;
@@ -51,14 +50,18 @@ export function addParseSpanInfo(node: ts.Node, span: AbsoluteSourceSpan|ParseSo
     commentText = `${span.start.offset},${span.end.offset}`;
   }
   ts.addSyntheticTrailingComment(
-      node, ts.SyntaxKind.MultiLineCommentTrivia, commentText, /* hasTrailingNewLine */ false);
+    node,
+    ts.SyntaxKind.MultiLineCommentTrivia,
+    commentText,
+    /* hasTrailingNewLine */ false,
+  );
 }
 
 /**
- * Adds a synthetic comment to the function declaration that contains the template id
+ * Adds a synthetic comment to the function declaration that contains the type checking ID
  * of the class declaration.
  */
-export function addTemplateId(tcb: ts.FunctionDeclaration, id: TemplateId): void {
+export function addTypeCheckId(tcb: ts.FunctionDeclaration, id: TypeCheckId): void {
   ts.addSyntheticLeadingComment(tcb, ts.SyntaxKind.MultiLineCommentTrivia, id, true);
 }
 
@@ -90,18 +93,29 @@ export function shouldReportDiagnostic(diagnostic: ts.Diagnostic): boolean {
  * file from being reported as type-check errors.
  */
 export function translateDiagnostic(
-    diagnostic: ts.Diagnostic, resolver: TemplateSourceResolver): TemplateDiagnostic|null {
+  diagnostic: ts.Diagnostic,
+  resolver: TypeCheckSourceResolver,
+): TemplateDiagnostic | null {
   if (diagnostic.file === undefined || diagnostic.start === undefined) {
     return null;
   }
-  const fullMapping = getTemplateMapping(
-      diagnostic.file, diagnostic.start, resolver, /*isDiagnosticsRequest*/ true);
+  const fullMapping = getSourceMapping(
+    diagnostic.file,
+    diagnostic.start,
+    resolver,
+    /*isDiagnosticsRequest*/ true,
+  );
   if (fullMapping === null) {
     return null;
   }
 
-  const {sourceLocation, templateSourceMapping, span} = fullMapping;
+  const {sourceLocation, sourceMapping: templateSourceMapping, span} = fullMapping;
   return makeTemplateDiagnostic(
-      sourceLocation.id, templateSourceMapping, span, diagnostic.category, diagnostic.code,
-      diagnostic.messageText);
+    sourceLocation.id,
+    templateSourceMapping,
+    span,
+    diagnostic.category,
+    diagnostic.code,
+    diagnostic.messageText,
+  );
 }

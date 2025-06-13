@@ -10,17 +10,23 @@
         "enableI18nLegacyMessageIdFormat": true
       },
       "compilationModeFilter": [
-        "full compile"
+        "full compile",
+        "declaration-only emit"
       ],
       "expectations": [
         {
+          "files": [
+            {
+              "generated": "legacy_enabled.js",
+              "expected": "legacy_enabled.js"
+            }
+          ],
           "extraChecks": [
             "verifyPlaceholdersIntegrity",
             "verifyUniqueConsts"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     },
     {
       "description": "should not add legacy message ids if `enableI18nLegacyMessageIdFormat` is false",
@@ -37,8 +43,7 @@
             "verifyUniqueConsts"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     }
   ]
 }

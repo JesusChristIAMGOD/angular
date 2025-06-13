@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import ts from 'typescript';
@@ -32,6 +32,21 @@ export enum PotentialImportKind {
   Standalone,
 }
 
+export interface TsCompletionEntryInfo {
+  /**
+   * Sometimes, the location of the tsCompletionEntry symbol does not match the location of the Angular symbol.
+   *
+   * For example, the BarComponent is declared in `bar.ts` and exported from there. The `public_api.ts` also
+   * reexports the BarComponent from `bar.ts`, so the `tsCompletionEntrySymbolFileName` will be `public_api.ts`.
+   */
+  tsCompletionEntrySymbolFileName: string;
+  /**
+   * This data is from the tsLs completion entry, and
+   * will be used in the `ls.getCompletionEntryDetails`.
+   */
+  tsCompletionEntryData?: ts.CompletionEntryData;
+}
+
 /**
  * Metadata on a directive which is available in a template.
  */
@@ -46,12 +61,12 @@ export interface PotentialDirective {
   /**
    * The module which declares the directive.
    */
-  ngModule: ClassDeclaration|null;
+  ngModule: ClassDeclaration | null;
 
   /**
    * The selector for the directive or component.
    */
-  selector: string|null;
+  selector: string | null;
 
   /**
    * `true` if this directive is a component.
@@ -67,6 +82,8 @@ export interface PotentialDirective {
    * Whether or not this directive is in scope.
    */
   isInScope: boolean;
+
+  tsCompletionEntryInfo: TsCompletionEntryInfo | null;
 }
 
 /**
@@ -83,12 +100,14 @@ export interface PotentialPipe {
   /**
    * Name of the pipe.
    */
-  name: string;
+  name: string | null;
 
   /**
    * Whether or not this pipe is in scope.
    */
   isInScope: boolean;
+
+  tsCompletionEntryInfo: TsCompletionEntryInfo | null;
 }
 
 /**

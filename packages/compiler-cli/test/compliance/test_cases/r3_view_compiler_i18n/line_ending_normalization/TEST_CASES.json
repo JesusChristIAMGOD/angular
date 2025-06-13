@@ -23,8 +23,7 @@
             "verifyUniqueConsts"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     },
     {
       "description": "should normalize line breaks for non-legacy messages in 'inline templates' where i18nNormalizeLineEndingsInICUs is false",
@@ -48,8 +47,7 @@
             "verifyUniqueConsts"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     },
     {
       "description": "should normalize line breaks for non-legacy messages in 'external templates' where i18nNormalizeLineEndingsInICUs is true",
@@ -73,8 +71,7 @@
             "verifyUniqueConsts"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     },
     {
       "description": "should normalize line breaks for non-legacy messages in 'external templates' where i18nNormalizeLineEndingsInICUs is false",
@@ -98,8 +95,7 @@
             "verifyUniqueConsts"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     },
     {
       "description": "should compute normalized legacy ids for messages in inline templates where i18nNormalizeLineEndingsInICUs is true",
@@ -111,7 +107,8 @@
         "enableI18nLegacyMessageIdFormat": true
       },
       "compilationModeFilter": [
-        "full compile"
+        "full compile",
+        "declaration-only emit"
       ],
       "expectations": [
         {
@@ -126,8 +123,7 @@
             "verifyUniqueConsts"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     },
     {
       "description": "should compute normalized legacy ids for messages in inline templates where i18nNormalizeLineEndingsInICUs is false",
@@ -139,7 +135,8 @@
         "enableI18nLegacyMessageIdFormat": true
       },
       "compilationModeFilter": [
-        "full compile"
+        "full compile",
+        "declaration-only emit"
       ],
       "expectations": [
         {
@@ -154,8 +151,7 @@
             "verifyUniqueConsts"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     },
     {
       "description": "should compute normalized legacy ids for messages in external templates where i18nNormalizeLineEndingsInICUs is true",
@@ -167,7 +163,8 @@
         "enableI18nLegacyMessageIdFormat": true
       },
       "compilationModeFilter": [
-        "full compile"
+        "full compile",
+        "declaration-only emit"
       ],
       "expectations": [
         {
@@ -176,8 +173,7 @@
             "verifyUniqueConsts"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     },
     {
       "description": "should compute non-normalized legacy ids for messages in external templates where i18nNormalizeLineEndingsInICUs is false",
@@ -189,7 +185,8 @@
         "enableI18nLegacyMessageIdFormat": true
       },
       "compilationModeFilter": [
-        "full compile"
+        "full compile",
+        "declaration-only emit"
       ],
       "expectations": [
         {
@@ -198,8 +195,7 @@
             "verifyUniqueConsts"
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     }
   ]
 }

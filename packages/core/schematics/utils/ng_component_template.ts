@@ -3,16 +3,15 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {Tree} from '@angular-devkit/schematics';
-import {dirname, relative, resolve} from 'path';
 import ts from 'typescript';
 
 import {extractAngularClassMetadata} from './extract_metadata';
 import {computeLineStartsMap, getLineAndCharacterFromPosition} from './line_mappings';
 import {getPropertyNameText} from './typescript/property_name';
+import {AbsoluteFsPath, getFileSystem} from '@angular/compiler-cli/src/ngtsc/file_system';
 
 export interface ResolvedTemplate {
   /** Class declaration that contains this template. */
@@ -24,14 +23,15 @@ export interface ResolvedTemplate {
   /** Whether the given template is inline or not. */
   inline: boolean;
   /** Path to the file that contains this template. */
-  filePath: string;
+  filePath: string | AbsoluteFsPath;
   /**
    * Gets the character and line of a given position index in the template.
    * If the template is declared inline within a TypeScript source file, the line and
    * character are based on the full source file content.
    */
   getCharacterAndLineOfPosition: (pos: number) => {
-    character: number, line: number
+    character: number;
+    line: number;
   };
 }
 
@@ -42,14 +42,16 @@ export interface ResolvedTemplate {
 export class NgComponentTemplateVisitor {
   resolvedTemplates: ResolvedTemplate[] = [];
 
-  constructor(public typeChecker: ts.TypeChecker, private _basePath: string, private _tree: Tree) {}
+  private fs = getFileSystem();
+
+  constructor(public typeChecker: ts.TypeChecker) {}
 
   visitNode(node: ts.Node) {
     if (node.kind === ts.SyntaxKind.ClassDeclaration) {
       this.visitClassDeclaration(node as ts.ClassDeclaration);
     }
 
-    ts.forEachChild(node, n => this.visitNode(n));
+    ts.forEachChild(node, (n) => this.visitNode(n));
   }
 
   private visitClassDeclaration(node: ts.ClassDeclaration) {
@@ -63,7 +65,7 @@ export class NgComponentTemplateVisitor {
 
     // Walk through all component metadata properties and determine the referenced
     // HTML templates (either external or inline)
-    metadata.node.properties.forEach(property => {
+    metadata.node.properties.forEach((property) => {
       if (!ts.isPropertyAssignment(property)) {
         return;
       }
@@ -90,35 +92,30 @@ export class NgComponentTemplateVisitor {
           content,
           inline: true,
           start: start,
-          getCharacterAndLineOfPosition: pos =>
-              ts.getLineAndCharacterOfPosition(sourceFile, pos + start)
+          getCharacterAndLineOfPosition: (pos) =>
+            ts.getLineAndCharacterOfPosition(sourceFile, pos + start),
         });
       }
       if (propertyName === 'templateUrl' && ts.isStringLiteralLike(property.initializer)) {
-        const templateDiskPath = resolve(dirname(sourceFileName), property.initializer.text);
-        // TODO(devversion): Remove this when the TypeScript compiler host is fully virtual
-        // relying on the devkit virtual tree and not dealing with disk paths. This is blocked on
-        // providing common utilities for schematics/migrations, given this is done in the
-        // Angular CDK already:
-        // https://github.com/angular/components/blob/3704400ee67e0190c9783e16367587489c803ebc/src/cdk/schematics/update-tool/utils/virtual-host.ts.
-        const templateDevkitPath = relative(this._basePath, templateDiskPath);
-
-        // In case the template does not exist in the file system, skip this
-        // external template.
-        if (!this._tree.exists(templateDevkitPath)) {
+        const absolutePath = this.fs.resolve(
+          this.fs.dirname(sourceFileName),
+          property.initializer.text,
+        );
+        if (!this.fs.exists(absolutePath)) {
           return;
         }
 
-        const fileContent = this._tree.read(templateDevkitPath)!.toString();
+        const fileContent = this.fs.readFile(absolutePath);
         const lineStartsMap = computeLineStartsMap(fileContent);
 
         this.resolvedTemplates.push({
-          filePath: templateDiskPath,
+          filePath: absolutePath,
           container: node,
           content: fileContent,
           inline: false,
           start: 0,
-          getCharacterAndLineOfPosition: pos => getLineAndCharacterFromPosition(lineStartsMap, pos),
+          getCharacterAndLineOfPosition: (pos) =>
+            getLineAndCharacterFromPosition(lineStartsMap, pos),
         });
       }
     });
