@@ -52,8 +52,7 @@
             }
           ]
         }
-      ],
-      "skipForTemplatePipeline": true
+      ]
     },
     {
       "description": "should use appropriate function for a given no of pipe arguments",
@@ -109,6 +108,20 @@
               "expected": "pipe_di_change_detector_ref_my_other_pipe_fac.js",
               "generated": "pipe_di_change_detector_ref.js"
             }
+          ]
+        }
+      ]
+    },
+    {
+      "description": "should handle a pipe that does not have a name",
+      "inputFiles": [
+        "nameless_pipe.ts"
+      ],
+      "expectations": [
+        {
+          "failureMessage": "Invalid definition",
+          "files": [
+            "nameless_pipe.js"
           ]
         }
       ]

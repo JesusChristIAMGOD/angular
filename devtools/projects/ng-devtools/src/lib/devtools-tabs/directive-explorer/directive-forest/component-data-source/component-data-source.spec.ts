@@ -3,11 +3,11 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {FlatTreeControl} from '@angular/cdk/tree';
-import {DevToolsNode} from 'protocol';
+import {DevToolsNode} from '../../../../../../../protocol';
 
 import {ComponentDataSource, FlatNode} from '.';
 
@@ -20,6 +20,7 @@ const tree1: DevToolsNode = {
     },
   ],
   component: null,
+  hydration: null,
   children: [
     {
       children: [],
@@ -30,10 +31,13 @@ const tree1: DevToolsNode = {
       },
       directives: [],
       element: 'bar',
+      hydration: null,
       nativeElement: document.createElement('bar'),
+      defer: null,
     },
   ],
   nativeElement: document.createElement('foo'),
+  defer: null,
 };
 
 const tree2: DevToolsNode = {
@@ -45,6 +49,7 @@ const tree2: DevToolsNode = {
     },
   ],
   component: null,
+  hydration: null,
   children: [
     {
       children: [],
@@ -55,7 +60,9 @@ const tree2: DevToolsNode = {
       },
       directives: [],
       element: 'bar',
+      hydration: null,
       nativeElement: document.createElement('bar'),
+      defer: null,
     },
     {
       children: [],
@@ -66,10 +73,13 @@ const tree2: DevToolsNode = {
       },
       directives: [],
       element: 'qux',
+      hydration: null,
       nativeElement: document.createElement('qux'),
+      defer: null,
     },
   ],
   nativeElement: document.createElement('foo'),
+  defer: null,
 };
 
 const tree3: DevToolsNode = {
@@ -81,6 +91,7 @@ const tree3: DevToolsNode = {
     },
   ],
   component: null,
+  hydration: null,
   children: [
     {
       children: [],
@@ -91,6 +102,8 @@ const tree3: DevToolsNode = {
       },
       directives: [],
       element: '#comment',
+      hydration: null,
+      defer: null,
       nativeElement: document.createComment('bar'),
     },
     {
@@ -102,14 +115,18 @@ const tree3: DevToolsNode = {
       },
       directives: [],
       element: '#comment',
+      hydration: null,
+      defer: null,
       nativeElement: document.createComment('bar'),
     },
   ],
   nativeElement: document.createElement('foo'),
+  defer: null,
 };
 
 const tree4: DevToolsNode = {
   element: 'app',
+  hydration: null,
   directives: [
     {
       id: 1,
@@ -135,6 +152,8 @@ const tree4: DevToolsNode = {
                       },
                       directives: [],
                       element: 'bar',
+                      hydration: null,
+                      defer: null,
                       nativeElement: document.createComment('bar'),
                     },
                   ],
@@ -145,6 +164,8 @@ const tree4: DevToolsNode = {
                   },
                   directives: [],
                   element: '#comment',
+                  hydration: null,
+                  defer: null,
                   nativeElement: document.createComment('bar'),
                 },
               ],
@@ -155,6 +176,8 @@ const tree4: DevToolsNode = {
               },
               directives: [],
               element: '#comment',
+              hydration: null,
+              defer: null,
               nativeElement: document.createComment('bar'),
             },
           ],
@@ -165,6 +188,8 @@ const tree4: DevToolsNode = {
           },
           directives: [],
           element: '#comment',
+          hydration: null,
+          defer: null,
           nativeElement: document.createComment('bar'),
         },
       ],
@@ -175,16 +200,21 @@ const tree4: DevToolsNode = {
       },
       directives: [],
       element: '#comment',
+      hydration: null,
       nativeElement: document.createComment('bar'),
+      defer: null,
     },
   ],
+  defer: null,
   nativeElement: document.createElement('foo'),
 };
 
 describe('ComponentDataSource', () => {
   let dataSource: ComponentDataSource;
-  const treeControl =
-      new FlatTreeControl<FlatNode>((node) => node.level, (node) => node.expandable);
+  const treeControl = new FlatTreeControl<FlatNode>(
+    (node) => node.level,
+    (node) => node.expandable,
+  );
 
   beforeEach(() => (dataSource = new ComponentDataSource(treeControl)));
 

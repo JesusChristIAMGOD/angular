@@ -1,3 +1,5 @@
+const waitForAsync = Zone[Zone.__symbol__('asyncTest')];
+
 function assertInsideProxyZone() {
   expect(Zone.current.name).toEqual('ProxyZone');
 }
@@ -43,6 +45,18 @@ describe('test', () => {
   test.each([[]])('test.each', () => {
     assertInsideProxyZone();
   });
+
+  test.each([
+    ['1', 1],
+    ['2', 2],
+  ])(
+    'Test.each ["%s", %s]',
+    waitForAsync((p1, p2) => {
+      expect(typeof p1).toEqual('string');
+      expect(typeof p2).toEqual('number');
+      expect(p1).toEqual('' + p2);
+    }),
+  );
 });
 
 it('it', () => {
@@ -96,6 +110,10 @@ it.each`
   expect(bar).toBe(2);
 });
 
+it.failing('it is not equal', () => {
+  expect(5).toBe(6); // this test will pass
+});
+
 test('test', () => {
   assertInsideProxyZone();
 });
@@ -104,6 +122,9 @@ test.each([[]])('test.each', () => {
 });
 
 test.todo('todo');
+test.failing('it is not equal', () => {
+  expect(5).toBe(6); // this test will pass
+});
 
 function enableJestPatch() {
   global[Zone.__symbol__('fakeAsyncDisablePatchingFakeTimer')] = true;
@@ -113,7 +134,7 @@ function disableJestPatch() {
   global[Zone.__symbol__('fakeAsyncDisablePatchingFakeTimer')] = false;
 }
 const {resetFakeAsyncZone, flushMicrotasks, discardPeriodicTasks, tick, flush, fakeAsync} =
-    Zone[Zone.__symbol__('fakeAsyncTest')];
+  Zone[Zone.__symbol__('fakeAsyncTest')];
 
 describe('jest modern fakeTimers with zone.js fakeAsync', () => {
   beforeEach(() => {
@@ -134,8 +155,7 @@ describe('jest modern fakeTimers with zone.js fakeAsync', () => {
     let d = fakeAsyncZoneSpec.getRealSystemTime();
     jest.setSystemTime(d);
     expect(Date.now()).toEqual(d);
-    for (let i = 0; i < 100000; i++) {
-    }
+    for (let i = 0; i < 10_000_000; i++) {}
     expect(fakeAsyncZoneSpec.getRealSystemTime()).not.toEqual(d);
     d = fakeAsyncZoneSpec.getRealSystemTime();
     let timeoutTriggered = false;
@@ -379,8 +399,7 @@ describe('jest fakeTimers inside test should call native delegate', () => {
     expect(fakeAsyncZoneSpec).toBeFalsy();
     const d = Date.now();
     jest.setSystemTime(d);
-    for (let i = 0; i < 100000; i++) {
-    }
+    for (let i = 0; i < 100000; i++) {}
     expect(jest.getRealSystemTime()).not.toEqual(d);
     jest.useRealTimers();
   });

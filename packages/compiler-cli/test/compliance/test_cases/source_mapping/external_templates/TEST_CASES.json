@@ -7,13 +7,13 @@
         "external_template.ts"
       ],
       "compilationModeFilter": [
-        "full compile"
+        "full compile",
+        "declaration-only emit"
       ],
       "compilerOptions": {
         "sourceMap": true,
         "inlineSources": true
-      },
-      "skipForTemplatePipeline": true
+      }
     },
     {
       "description": "should create external template source-mapping (linked compile)",
@@ -31,7 +31,8 @@
         }
       ],
       "compilationModeFilter": [
-        "linked compile"
+        "linked compile",
+        "declaration-only emit"
       ],
       "compilerOptions": {
         "sourceMap": true,
@@ -44,7 +45,8 @@
         "extra_root_dir.ts"
       ],
       "compilationModeFilter": [
-        "full compile"
+        "full compile",
+        "declaration-only emit"
       ],
       "compilerOptions": {
         "sourceMap": true,
@@ -53,8 +55,7 @@
           ".",
           "extraRootDir"
         ]
-      },
-      "skipForTemplatePipeline": true
+      }
     },
     {
       "description": "should create correct mappings when templateUrl is in a different rootDir (linked compile)",
@@ -62,7 +63,8 @@
         "extra_root_dir.ts"
       ],
       "compilationModeFilter": [
-        "linked compile"
+        "linked compile",
+        "declaration-only emit"
       ],
       "expectations": [
         {
@@ -89,13 +91,13 @@
         "escaped_chars.ts"
       ],
       "compilationModeFilter": [
-        "full compile"
+        "full compile",
+        "declaration-only emit"
       ],
       "compilerOptions": {
         "sourceMap": true,
         "inlineSources": true
-      },
-      "skipForTemplatePipeline": true
+      }
     },
     {
       "description": "should handle unusual escaped chars when source-mapping (linked compile)",
@@ -113,7 +115,8 @@
         }
       ],
       "compilationModeFilter": [
-        "linked compile"
+        "linked compile",
+        "declaration-only emit"
       ],
       "compilerOptions": {
         "sourceMap": true,

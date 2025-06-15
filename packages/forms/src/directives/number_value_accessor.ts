@@ -3,17 +3,21 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {Directive, ElementRef, forwardRef, Provider} from '@angular/core';
+import {Directive, forwardRef, Provider} from '@angular/core';
 
-import {BuiltInControlValueAccessor, ControlValueAccessor, NG_VALUE_ACCESSOR} from './control_value_accessor';
+import {
+  BuiltInControlValueAccessor,
+  ControlValueAccessor,
+  NG_VALUE_ACCESSOR,
+} from './control_value_accessor';
 
 const NUMBER_VALUE_ACCESSOR: Provider = {
   provide: NG_VALUE_ACCESSOR,
   useExisting: forwardRef(() => NumberValueAccessor),
-  multi: true
+  multi: true,
 };
 
 /**
@@ -32,7 +36,7 @@ const NUMBER_VALUE_ACCESSOR: Provider = {
  * const totalCountControl = new FormControl();
  * ```
  *
- * ```
+ * ```html
  * <input type="number" [formControl]="totalCountControl">
  * ```
  *
@@ -42,15 +46,18 @@ const NUMBER_VALUE_ACCESSOR: Provider = {
  */
 @Directive({
   selector:
-      'input[type=number][formControlName],input[type=number][formControl],input[type=number][ngModel]',
-  host: {'(input)': 'onChange($event.target.value)', '(blur)': 'onTouched()'},
-  providers: [NUMBER_VALUE_ACCESSOR]
+    'input[type=number][formControlName],input[type=number][formControl],input[type=number][ngModel]',
+  host: {'(input)': 'onChange($any($event.target).value)', '(blur)': 'onTouched()'},
+  providers: [NUMBER_VALUE_ACCESSOR],
+  standalone: false,
 })
-export class NumberValueAccessor extends BuiltInControlValueAccessor implements
-    ControlValueAccessor {
+export class NumberValueAccessor
+  extends BuiltInControlValueAccessor
+  implements ControlValueAccessor
+{
   /**
    * Sets the "value" property on the input element.
-   * @nodoc
+   * @docs-private
    */
   writeValue(value: number): void {
     // The value needs to be normalized for IE9, otherwise it is set to 'null' when null
@@ -60,9 +67,9 @@ export class NumberValueAccessor extends BuiltInControlValueAccessor implements
 
   /**
    * Registers a function called when the control value changes.
-   * @nodoc
+   * @docs-private
    */
-  override registerOnChange(fn: (_: number|null) => void): void {
+  override registerOnChange(fn: (_: number | null) => void): void {
     this.onChange = (value) => {
       fn(value == '' ? null : parseFloat(value));
     };

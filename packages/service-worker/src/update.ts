@@ -3,22 +3,25 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {Injectable} from '@angular/core';
+import {Injectable, ɵRuntimeError as RuntimeError} from '@angular/core';
 import {NEVER, Observable} from 'rxjs';
-import {filter, map} from 'rxjs/operators';
 
-import {ERR_SW_NOT_SUPPORTED, NgswCommChannel, UnrecoverableStateEvent, UpdateActivatedEvent, UpdateAvailableEvent, VersionEvent, VersionReadyEvent} from './low_level';
-
-
+import {RuntimeErrorCode} from './errors';
+import {
+  ERR_SW_NOT_SUPPORTED,
+  NgswCommChannel,
+  UnrecoverableStateEvent,
+  VersionEvent,
+} from './low_level';
 
 /**
  * Subscribe to update notifications from the Service Worker, trigger update
  * checks, and forcibly activate updates.
  *
- * @see {@link guide/service-worker-communications Service worker communication guide}
+ * @see {@link /ecosystem/service-workers/communications Service Worker Communication Guide}
  *
  * @publicApi
  */
@@ -36,27 +39,6 @@ export class SwUpdate {
   readonly versionUpdates: Observable<VersionEvent>;
 
   /**
-   * Emits an `UpdateAvailableEvent` event whenever a new app version is available.
-   *
-   * @deprecated Use {@link versionUpdates} instead.
-   *
-   * The behavior of `available` can be replicated by using `versionUpdates` by filtering for the
-   * `VersionReadyEvent`:
-   *
-   * {@example service-worker-getting-started/src/app/prompt-update.service.ts
-   * region='sw-replicate-available'}
-   */
-  readonly available: Observable<UpdateAvailableEvent>;
-
-  /**
-   * Emits an `UpdateActivatedEvent` event whenever the app has been updated to a new version.
-   *
-   * @deprecated Use the return value of {@link SwUpdate#activateUpdate} instead.
-   *
-   */
-  readonly activated: Observable<UpdateActivatedEvent>;
-
-  /**
    * Emits an `UnrecoverableStateEvent` event whenever the version of the app used by the service
    * worker to serve this client is in a broken state that cannot be recovered from without a full
    * page reload.
@@ -71,11 +53,11 @@ export class SwUpdate {
     return this.sw.isEnabled;
   }
 
+  private ongoingCheckForUpdate: Promise<boolean> | null = null;
+
   constructor(private sw: NgswCommChannel) {
     if (!sw.isEnabled) {
       this.versionUpdates = NEVER;
-      this.available = NEVER;
-      this.activated = NEVER;
       this.unrecoverable = NEVER;
       return;
     }
@@ -85,14 +67,6 @@ export class SwUpdate {
       'VERSION_READY',
       'NO_NEW_VERSION_DETECTED',
     ]);
-    this.available = this.versionUpdates.pipe(
-        filter((evt: VersionEvent): evt is VersionReadyEvent => evt.type === 'VERSION_READY'),
-        map(evt => ({
-              type: 'UPDATE_AVAILABLE',
-              current: evt.currentVersion,
-              available: evt.latestVersion,
-            })));
-    this.activated = this.sw.eventsOfType<UpdateActivatedEvent>('UPDATE_ACTIVATED');
     this.unrecoverable = this.sw.eventsOfType<UnrecoverableStateEvent>('UNRECOVERABLE_STATE');
   }
 
@@ -109,8 +83,16 @@ export class SwUpdate {
     if (!this.sw.isEnabled) {
       return Promise.reject(new Error(ERR_SW_NOT_SUPPORTED));
     }
+    if (this.ongoingCheckForUpdate) {
+      return this.ongoingCheckForUpdate;
+    }
     const nonce = this.sw.generateNonce();
-    return this.sw.postMessageWithOperation('CHECK_FOR_UPDATES', {nonce}, nonce);
+    this.ongoingCheckForUpdate = this.sw
+      .postMessageWithOperation('CHECK_FOR_UPDATES', {nonce}, nonce)
+      .finally(() => {
+        this.ongoingCheckForUpdate = null;
+      });
+    return this.ongoingCheckForUpdate;
   }
 
   /**
@@ -120,11 +102,11 @@ export class SwUpdate {
    * In most cases, you should not use this method and instead should update a client by reloading
    * the page.
    *
-   * <div class="alert is-important">
+   * <div class="docs-alert docs-alert-important">
    *
    * Updating a client without reloading can easily result in a broken application due to a version
-   * mismatch between the [application shell](guide/glossary#app-shell) and other page resources,
-   * such as [lazy-loaded chunks](guide/glossary#lazy-loading), whose filenames may change between
+   * mismatch between the application shell and other page resources,
+   * such as lazy-loaded chunks, whose filenames may change between
    * versions.
    *
    * Only use this method, if you are certain it is safe for your specific use case.
@@ -139,7 +121,12 @@ export class SwUpdate {
    */
   activateUpdate(): Promise<boolean> {
     if (!this.sw.isEnabled) {
-      return Promise.reject(new Error(ERR_SW_NOT_SUPPORTED));
+      return Promise.reject(
+        new RuntimeError(
+          RuntimeErrorCode.SERVICE_WORKER_DISABLED_OR_NOT_SUPPORTED_BY_THIS_BROWSER,
+          (typeof ngDevMode === 'undefined' || ngDevMode) && ERR_SW_NOT_SUPPORTED,
+        ),
+      );
     }
     const nonce = this.sw.generateNonce();
     return this.sw.postMessageWithOperation('ACTIVATE_UPDATE', {nonce}, nonce);

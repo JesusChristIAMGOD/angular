@@ -3,14 +3,25 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
-const _Zone: any = typeof Zone !== 'undefined' ? Zone : null;
-const fakeAsyncTestModule = _Zone && _Zone[_Zone.__symbol__('fakeAsyncTest')];
 
-const fakeAsyncTestModuleNotLoadedErrorMessage =
-    `zone-testing.js is needed for the fakeAsync() test helper but could not be found.
-        Please make sure that your environment includes zone.js/testing`;
+// Needed for the global `Zone` ambient types to be available.
+import type {} from 'zone.js';
+
+const _Zone: any = typeof Zone !== 'undefined' ? Zone : null;
+function getFakeAsyncTestModule() {
+  return _Zone && _Zone[_Zone.__symbol__('fakeAsyncTest')];
+}
+
+function withFakeAsyncTestModule(fn: (fakeAsyncTestModule: any) => any): any {
+  const fakeAsyncTestModule = getFakeAsyncTestModule();
+  if (!fakeAsyncTestModule) {
+    throw new Error(`zone-testing.js is needed for the fakeAsync() test helper but could not be found.
+        Please make sure that your environment includes zone.js/testing`);
+  }
+  return fn(fakeAsyncTestModule);
+}
 
 /**
  * Clears out the shared fake async zone for a test.
@@ -19,10 +30,13 @@ const fakeAsyncTestModuleNotLoadedErrorMessage =
  * @publicApi
  */
 export function resetFakeAsyncZone(): void {
-  if (fakeAsyncTestModule) {
-    return fakeAsyncTestModule.resetFakeAsyncZone();
+  withFakeAsyncTestModule((v) => v.resetFakeAsyncZone());
+}
+
+export function resetFakeAsyncZoneIfExists(): void {
+  if (getFakeAsyncTestModule() && (Zone as any)['ProxyZoneSpec']?.isLoaded()) {
+    getFakeAsyncTestModule().resetFakeAsyncZone();
   }
-  throw new Error(fakeAsyncTestModuleNotLoadedErrorMessage);
 }
 
 /**
@@ -30,11 +44,12 @@ export function resetFakeAsyncZone(): void {
  * - Microtasks are manually executed by calling `flushMicrotasks()`.
  * - Timers are synchronous; `tick()` simulates the asynchronous passage of time.
  *
- * If there are any pending timers at the end of the function, an exception is thrown.
- *
  * Can be used to wrap `inject()` calls.
  *
  * @param fn The function that you want to wrap in the `fakeAsync` zone.
+ * @param options
+ *   - flush: When true, will drain the macrotask queue after the test function completes.
+ *     When false, will throw an exception at the end of the function if there are pending timers.
  *
  * @usageNotes
  * ### Example
@@ -48,11 +63,8 @@ export function resetFakeAsyncZone(): void {
  *
  * @publicApi
  */
-export function fakeAsync(fn: Function): (...args: any[]) => any {
-  if (fakeAsyncTestModule) {
-    return fakeAsyncTestModule.fakeAsync(fn);
-  }
-  throw new Error(fakeAsyncTestModuleNotLoadedErrorMessage);
+export function fakeAsync(fn: Function, options?: {flush?: boolean}): (...args: any[]) => any {
+  return withFakeAsyncTestModule((v) => v.fakeAsync(fn, options));
 }
 
 /**
@@ -85,7 +97,7 @@ export function fakeAsync(fn: Function): (...args: any[]) => any {
  * `processNewMacroTasksSynchronously` defaults to true, and the nested
  * function is executed on each tick.
  *
- * ```
+ * ```ts
  * it ('test with nested setTimeout', fakeAsync(() => {
  *   let nestedTimeoutInvoked = false;
  *   function funcWithNestedTimeout() {
@@ -102,7 +114,7 @@ export function fakeAsync(fn: Function): (...args: any[]) => any {
  * In the following case, `processNewMacroTasksSynchronously` is explicitly
  * set to false, so the nested timeout function is not invoked.
  *
- * ```
+ * ```ts
  * it ('test with nested setTimeout', fakeAsync(() => {
  *   let nestedTimeoutInvoked = false;
  *   function funcWithNestedTimeout() {
@@ -120,13 +132,12 @@ export function fakeAsync(fn: Function): (...args: any[]) => any {
  * @publicApi
  */
 export function tick(
-    millis: number = 0, tickOptions: {processNewMacroTasksSynchronously: boolean} = {
-      processNewMacroTasksSynchronously: true
-    }): void {
-  if (fakeAsyncTestModule) {
-    return fakeAsyncTestModule.tick(millis, tickOptions);
-  }
-  throw new Error(fakeAsyncTestModuleNotLoadedErrorMessage);
+  millis: number = 0,
+  tickOptions: {processNewMacroTasksSynchronously: boolean} = {
+    processNewMacroTasksSynchronously: true,
+  },
+): void {
+  return withFakeAsyncTestModule((m) => m.tick(millis, tickOptions));
 }
 
 /**
@@ -141,10 +152,7 @@ export function tick(
  * @publicApi
  */
 export function flush(maxTurns?: number): number {
-  if (fakeAsyncTestModule) {
-    return fakeAsyncTestModule.flush(maxTurns);
-  }
-  throw new Error(fakeAsyncTestModuleNotLoadedErrorMessage);
+  return withFakeAsyncTestModule((m) => m.flush(maxTurns));
 }
 
 /**
@@ -153,10 +161,7 @@ export function flush(maxTurns?: number): number {
  * @publicApi
  */
 export function discardPeriodicTasks(): void {
-  if (fakeAsyncTestModule) {
-    return fakeAsyncTestModule.discardPeriodicTasks();
-  }
-  throw new Error(fakeAsyncTestModuleNotLoadedErrorMessage);
+  return withFakeAsyncTestModule((m) => m.discardPeriodicTasks());
 }
 
 /**
@@ -165,8 +170,5 @@ export function discardPeriodicTasks(): void {
  * @publicApi
  */
 export function flushMicrotasks(): void {
-  if (fakeAsyncTestModule) {
-    return fakeAsyncTestModule.flushMicrotasks();
-  }
-  throw new Error(fakeAsyncTestModuleNotLoadedErrorMessage);
+  return withFakeAsyncTestModule((m) => m.flushMicrotasks());
 }
