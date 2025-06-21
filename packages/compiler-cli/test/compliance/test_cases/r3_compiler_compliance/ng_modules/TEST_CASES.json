@@ -15,11 +15,12 @@
         }
       ],
       "compilationModeFilter": [
-        "linked compile"
+        "linked compile",
+        "declaration-only emit"
       ]
     },
     {
-      "description": "should define a basic NgModule (full)",
+      "description": "should define a basic NgModule (full/local)",      
       "inputFiles": [
         "basic_full.ts"
       ],
@@ -32,7 +33,9 @@
         }
       ],
       "compilationModeFilter": [
-        "full compile"
+        "full compile",
+        "local compile",
+        "declaration-only emit"
       ]
     },
     {
@@ -63,7 +66,8 @@
         }
       ],
       "compilationModeFilter": [
-        "linked compile"
+        "linked compile",
+        "declaration-only emit"
       ],
       "angularCompilerOptions": {
         "linkerJitMode": true
@@ -81,6 +85,12 @@
             "providers.js"
           ]
         }
+      ],
+      "compilationModeFilter": [
+        "full compile",
+        "linked compile",
+        "local compile",
+        "declaration-only emit"
       ]
     },
     {
@@ -95,6 +105,11 @@
             "imports_exports.js"
           ]
         }
+      ],
+      "compilationModeFilter": [
+        "full compile",
+        "local compile",
+        "declaration-only emit"
       ]
     },
     {
@@ -111,7 +126,8 @@
         }
       ],
       "compilationModeFilter": [
-        "linked compile"
+        "linked compile",
+        "declaration-only emit"
       ],
       "angularCompilerOptions": {
         "linkerJitMode": true
@@ -129,6 +145,12 @@
             "no_aot.js"
           ]
         }
+      ],
+      "compilationModeFilter": [
+        "full compile",
+        "linked compile",
+        "local compile",
+        "declaration-only emit"
       ]
     },
     {
@@ -143,6 +165,12 @@
             "inheritance.js"
           ]
         }
+      ],
+      "compilationModeFilter": [
+        "full compile",
+        "linked compile",
+        "local compile",
+        "declaration-only emit"
       ]
     },
     {
@@ -159,7 +187,8 @@
         }
       ],
       "compilationModeFilter": [
-        "linked compile"
+        "linked compile",
+        "declaration-only emit"
       ],
       "angularCompilerOptions": {
         "linkerJitMode": true
@@ -172,11 +201,17 @@
       ],
       "expectations": [
         {
-          "failureMessage": "Invalid injector definition",
+          "failureMessage": "Empty declaration exists",
           "files": [
             "empty_fields.js"
           ]
         }
+      ],
+      "compilationModeFilter": [
+        "full compile",
+        "linked compile",
+        "local compile",
+        "declaration-only emit"
       ]
     },
     {
@@ -191,6 +226,12 @@
             "variable_providers.js"
           ]
         }
+      ],
+      "compilationModeFilter": [
+        "full compile",
+        "linked compile",
+        "local compile",
+        "declaration-only emit"
       ]
     }
   ]

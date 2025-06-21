@@ -3,11 +3,12 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {ErrorHandler} from '../src/error_handler';
-import {wrappedError} from '../src/util/errors';
+import {TestBed} from '../testing';
+import {ErrorHandler, provideBrowserGlobalErrorListeners} from '../src/error_handler';
+import {isNode} from '@angular/private/testing';
 
 class MockConsole {
   res: any[][] = [];
@@ -21,7 +22,7 @@ function errorToString(error: any) {
   const errorHandler = new ErrorHandler();
   (errorHandler as any)._console = logger as any;
   errorHandler.handleError(error);
-  return logger.res.map(line => line.map(x => `${x}`).join('#')).join('\n');
+  return logger.res.map((line) => line.map((x) => `${x}`).join('#')).join('\n');
 }
 
 describe('ErrorHandler', () => {
@@ -40,19 +41,58 @@ describe('ErrorHandler', () => {
     expect(errorToString(undefined)).toBe('ERROR#undefined');
   });
 
-  describe('original exception', () => {
-    it('should print original exception message if available (original is Error)', () => {
-      const realOriginal = new Error('inner');
-      const original = wrappedError('wrapped', realOriginal);
-      const e = errorToString(wrappedError('wrappedwrapped', original));
-      expect(e).toContain('inner');
+  it('installs global error handler once', async () => {
+    if (isNode) {
+      return;
+    }
+    // override global.onerror to prevent jasmine report error
+    let originalWindowOnError = window.onerror;
+    window.onerror = function () {};
+    TestBed.configureTestingModule({
+      rethrowApplicationErrors: false,
+      providers: [provideBrowserGlobalErrorListeners(), provideBrowserGlobalErrorListeners()],
     });
 
-    it('should print original exception message if available (original is not Error)', () => {
-      const realOriginal = new Error('custom');
-      const original = wrappedError('wrapped', realOriginal);
-      const e = errorToString(wrappedError('wrappedwrapped', original));
-      expect(e).toContain('custom');
+    const spy = spyOn(TestBed.inject(ErrorHandler), 'handleError');
+    await new Promise((resolve) => {
+      setTimeout(() => {
+        throw new Error('abc');
+      });
+      setTimeout(resolve, 1);
     });
+
+    expect(spy).toHaveBeenCalledWith(jasmine.objectContaining({message: 'abc'}));
+    expect(spy.calls.count()).toBe(1);
+    window.onerror = originalWindowOnError;
+  });
+
+  it('handles error events without error', async () => {
+    if (isNode) {
+      return;
+    }
+    // override global.onerror to prevent jasmine report error
+    let originalWindowOnError = window.onerror;
+    window.onerror = function () {};
+    TestBed.configureTestingModule({
+      rethrowApplicationErrors: false,
+      providers: [provideBrowserGlobalErrorListeners()],
+    });
+
+    const spy = spyOn(TestBed.inject(ErrorHandler), 'handleError');
+    await new Promise((resolve) => {
+      setTimeout(() => {
+        window.dispatchEvent(new ErrorEvent('error', {message: 'error event without error'}));
+      });
+      setTimeout(resolve, 1);
+    });
+
+    expect(spy).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        message:
+          'An ErrorEvent with no error occurred. See Error.cause for details: error event without error',
+      }),
+    );
+    expect(spy.calls.count()).toBe(1);
+    window.onerror = originalWindowOnError;
   });
 });

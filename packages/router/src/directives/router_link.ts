@@ -3,20 +3,38 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {LocationStrategy} from '@angular/common';
-import {Attribute, booleanAttribute, Directive, ElementRef, HostBinding, HostListener, Input, OnChanges, OnDestroy, Renderer2, SimpleChanges, ɵɵsanitizeUrlOrResourceUrl} from '@angular/core';
+import {
+  Attribute,
+  booleanAttribute,
+  Directive,
+  ElementRef,
+  HostAttributeToken,
+  HostBinding,
+  HostListener,
+  inject,
+  Input,
+  OnChanges,
+  OnDestroy,
+  Renderer2,
+  ɵRuntimeError as RuntimeError,
+  signal,
+  SimpleChanges,
+  untracked,
+  ɵINTERNAL_APPLICATION_ERROR_HANDLER,
+} from '@angular/core';
 import {Subject, Subscription} from 'rxjs';
-
+import {RuntimeErrorCode} from '../errors';
 import {Event, NavigationEnd} from '../events';
 import {QueryParamsHandling} from '../models';
 import {Router} from '../router';
+import {ROUTER_CONFIGURATION} from '../router_config';
 import {ActivatedRoute} from '../router_state';
 import {Params} from '../shared';
-import {UrlTree} from '../url_tree';
-
+import {isUrlTree, UrlTree} from '../url_tree';
 
 /**
  * @description
@@ -62,7 +80,7 @@ import {UrlTree} from '../url_tree';
  *
  * The following link adds a query parameter and a fragment to the generated URL:
  *
- * ```
+ * ```html
  * <a [routerLink]="['/user/bob']" [queryParams]="{debug: true}" fragment="education">
  *   link to user component
  * </a>
@@ -79,11 +97,14 @@ import {UrlTree} from '../url_tree';
  *
  * For example:
  *
- * ```
+ * ```html
  * <a [routerLink]="['/user/bob']" [queryParams]="{debug: true}" queryParamsHandling="merge">
  *   link to user component
  * </a>
  * ```
+ *
+ * `queryParams`, `fragment`, `queryParamsHandling`, `preserveFragment`, and `relativeTo`
+ * cannot be used when the `routerLink` input is a `UrlTree`.
  *
  * See {@link UrlCreationOptions#queryParamsHandling}.
  *
@@ -93,7 +114,7 @@ import {UrlTree} from '../url_tree';
  * [`History.state` property](https://developer.mozilla.org/en-US/docs/Web/API/History#Properties).
  * For example:
  *
- * ```
+ * ```html
  * <a [routerLink]="['/user/bob']" [state]="{tracingId: 123}">
  *   link to user component
  * </a>
@@ -103,7 +124,7 @@ import {UrlTree} from '../url_tree';
  * navigation-state value. For example, to capture the `tracingId` during the `NavigationStart`
  * event:
  *
- * ```
+ * ```ts
  * // Get NavigationStart events
  * router.events.pipe(filter(e => e instanceof NavigationStart)).subscribe(e => {
  *   const navigation = router.getCurrentNavigation();
@@ -111,24 +132,42 @@ import {UrlTree} from '../url_tree';
  * });
  * ```
  *
+ * ### RouterLink compatible custom elements
+ *
+ * In order to make a custom element work with routerLink, the corresponding custom
+ * element must implement the `href` attribute and must list `href` in the array of
+ * the static property/getter `observedAttributes`.
+ *
  * @ngModule RouterModule
  *
  * @publicApi
  */
 @Directive({
   selector: '[routerLink]',
-  standalone: true,
+  host: {
+    '[attr.href]': 'reactiveHref()',
+  },
 })
 export class RouterLink implements OnChanges, OnDestroy {
+  /** @nodoc */
+  protected readonly reactiveHref = signal<string | null>(null);
   /**
    * Represents an `href` attribute value applied to a host element,
-   * when a host element is `<a>`. For other tags, the value is `null`.
+   * when a host element is an `<a>`/`<area>` tag or a compatible custom element.
+   * For other tags, the value is `null`.
    */
-  href: string|null = null;
+  get href() {
+    return untracked(this.reactiveHref);
+  }
+  /** @deprecated */
+  set href(value: string | null) {
+    this.reactiveHref.set(value);
+  }
 
   /**
    * Represents the `target` attribute on a host element.
-   * This is only used when the host element is an `<a>` tag.
+   * This is only used when the host element is
+   * an `<a>`/`<area>` tag or a compatible custom element.
    */
   @HostBinding('attr.target') @Input() target?: string;
 
@@ -138,7 +177,7 @@ export class RouterLink implements OnChanges, OnDestroy {
    * @see {@link UrlCreationOptions#queryParams}
    * @see {@link Router#createUrlTree}
    */
-  @Input() queryParams?: Params|null;
+  @Input() queryParams?: Params | null;
   /**
    * Passed to {@link Router#createUrlTree} as part of the
    * `UrlCreationOptions`.
@@ -152,7 +191,7 @@ export class RouterLink implements OnChanges, OnDestroy {
    * @see {@link UrlCreationOptions#queryParamsHandling}
    * @see {@link Router#createUrlTree}
    */
-  @Input() queryParamsHandling?: QueryParamsHandling|null;
+  @Input() queryParamsHandling?: QueryParamsHandling | null;
   /**
    * Passed to {@link Router#navigateByUrl} as part of the
    * `NavigationBehaviorOptions`.
@@ -160,6 +199,13 @@ export class RouterLink implements OnChanges, OnDestroy {
    * @see {@link Router#navigateByUrl}
    */
   @Input() state?: {[k: string]: any};
+  /**
+   * Passed to {@link Router#navigateByUrl} as part of the
+   * `NavigationBehaviorOptions`.
+   * @see {@link NavigationBehaviorOptions#info}
+   * @see {@link Router#navigateByUrl}
+   */
+  @Input() info?: unknown;
   /**
    * Passed to {@link Router#createUrlTree} as part of the
    * `UrlCreationOptions`.
@@ -169,11 +215,9 @@ export class RouterLink implements OnChanges, OnDestroy {
    * @see {@link UrlCreationOptions#relativeTo}
    * @see {@link Router#createUrlTree}
    */
-  @Input() relativeTo?: ActivatedRoute|null;
+  @Input() relativeTo?: ActivatedRoute | null;
 
-  private commands: any[]|null = null;
-
-  /** Whether a host element is an `<a>` tag. */
+  /** Whether a host element is an `<a>`/`<area>` tag or a compatible custom element. */
   private isAnchorElement: boolean;
 
   private subscription?: Subscription;
@@ -181,23 +225,64 @@ export class RouterLink implements OnChanges, OnDestroy {
   /** @internal */
   onChanges = new Subject<RouterLink>();
 
-  constructor(
-      private router: Router, private route: ActivatedRoute,
-      @Attribute('tabindex') private readonly tabIndexAttribute: string|null|undefined,
-      private readonly renderer: Renderer2, private readonly el: ElementRef,
-      private locationStrategy?: LocationStrategy) {
-    const tagName = el.nativeElement.tagName?.toLowerCase();
-    this.isAnchorElement = tagName === 'a' || tagName === 'area';
+  private readonly applicationErrorHandler = inject(ɵINTERNAL_APPLICATION_ERROR_HANDLER);
+  private readonly options = inject(ROUTER_CONFIGURATION, {optional: true});
 
-    if (this.isAnchorElement) {
-      this.subscription = router.events.subscribe((s: Event) => {
-        if (s instanceof NavigationEnd) {
-          this.updateHref();
-        }
-      });
+  constructor(
+    private router: Router,
+    private route: ActivatedRoute,
+    @Attribute('tabindex') private readonly tabIndexAttribute: string | null | undefined,
+    private readonly renderer: Renderer2,
+    private readonly el: ElementRef,
+    private locationStrategy?: LocationStrategy,
+  ) {
+    // Set the initial href value to whatever exists on the host element already
+    this.reactiveHref.set(inject(new HostAttributeToken('href'), {optional: true}));
+    const tagName = el.nativeElement.tagName?.toLowerCase();
+    this.isAnchorElement =
+      tagName === 'a' ||
+      tagName === 'area' ||
+      !!(
+        // Avoid breaking in an SSR context where customElements might not be defined.
+        (
+          typeof customElements === 'object' &&
+          // observedAttributes is an optional static property/getter on a custom element.
+          // The spec states that this must be an array of strings.
+          (
+            customElements.get(tagName) as {observedAttributes?: string[]} | undefined
+          )?.observedAttributes?.includes?.('href')
+        )
+      );
+
+    if (!this.isAnchorElement) {
+      this.subscribeToNavigationEventsIfNecessary();
     } else {
       this.setTabIndexIfNotOnNativeEl('0');
     }
+  }
+
+  private subscribeToNavigationEventsIfNecessary() {
+    if (this.subscription !== undefined || !this.isAnchorElement) {
+      return;
+    }
+
+    // preserving fragment in router state
+    let createSubcription = this.preserveFragment;
+    // preserving or merging with query params in router state
+    const dependsOnRouterState = (handling?: QueryParamsHandling | null) =>
+      handling === 'merge' || handling === 'preserve';
+    createSubcription ||= dependsOnRouterState(this.queryParamsHandling);
+    createSubcription ||=
+      !this.queryParamsHandling && !dependsOnRouterState(this.options?.defaultQueryParamsHandling);
+    if (!createSubcription) {
+      return;
+    }
+
+    this.subscription = this.router.events.subscribe((s: Event) => {
+      if (s instanceof NavigationEnd) {
+        this.updateHref();
+      }
+    });
   }
 
   /**
@@ -228,48 +313,85 @@ export class RouterLink implements OnChanges, OnDestroy {
    * Modifies the tab index if there was not a tabindex attribute on the element during
    * instantiation.
    */
-  private setTabIndexIfNotOnNativeEl(newTabIndex: string|null) {
+  private setTabIndexIfNotOnNativeEl(newTabIndex: string | null) {
     if (this.tabIndexAttribute != null /* both `null` and `undefined` */ || this.isAnchorElement) {
       return;
     }
     this.applyAttributeValue('tabindex', newTabIndex);
   }
 
-  /** @nodoc */
-  ngOnChanges(changes: SimpleChanges) {
+  /** @docs-private */
+  // TODO(atscott): Remove changes parameter in major version as a breaking change.
+  ngOnChanges(changes?: SimpleChanges): void {
+    if (
+      ngDevMode &&
+      isUrlTree(this.routerLinkInput) &&
+      (this.fragment !== undefined ||
+        this.queryParams ||
+        this.queryParamsHandling ||
+        this.preserveFragment ||
+        this.relativeTo)
+    ) {
+      throw new RuntimeError(
+        RuntimeErrorCode.INVALID_ROUTER_LINK_INPUTS,
+        'Cannot configure queryParams or fragment when using a UrlTree as the routerLink input value.',
+      );
+    }
     if (this.isAnchorElement) {
       this.updateHref();
+      this.subscribeToNavigationEventsIfNecessary();
     }
     // This is subscribed to by `RouterLinkActive` so that it knows to update when there are changes
     // to the RouterLinks it's tracking.
     this.onChanges.next(this);
   }
 
+  private routerLinkInput: readonly any[] | UrlTree | null = null;
+
   /**
-   * Commands to pass to {@link Router#createUrlTree}.
+   * Commands to pass to {@link Router#createUrlTree} or a `UrlTree`.
    *   - **array**: commands to pass to {@link Router#createUrlTree}.
    *   - **string**: shorthand for array of commands with just the string, i.e. `['/route']`
+   *   - **UrlTree**: a `UrlTree` for this link rather than creating one from the commands
+   *     and other inputs that correspond to properties of `UrlCreationOptions`.
    *   - **null|undefined**: effectively disables the `routerLink`
    * @see {@link Router#createUrlTree}
    */
   @Input()
-  set routerLink(commands: any[]|string|null|undefined) {
-    if (commands != null) {
-      this.commands = Array.isArray(commands) ? commands : [commands];
-      this.setTabIndexIfNotOnNativeEl('0');
-    } else {
-      this.commands = null;
+  set routerLink(commandsOrUrlTree: readonly any[] | string | UrlTree | null | undefined) {
+    if (commandsOrUrlTree == null) {
+      this.routerLinkInput = null;
       this.setTabIndexIfNotOnNativeEl(null);
+    } else {
+      if (isUrlTree(commandsOrUrlTree)) {
+        this.routerLinkInput = commandsOrUrlTree;
+      } else {
+        this.routerLinkInput = Array.isArray(commandsOrUrlTree)
+          ? commandsOrUrlTree
+          : [commandsOrUrlTree];
+      }
+      this.setTabIndexIfNotOnNativeEl('0');
     }
   }
 
-  /** @nodoc */
-  @HostListener(
-      'click',
-      ['$event.button', '$event.ctrlKey', '$event.shiftKey', '$event.altKey', '$event.metaKey'])
-  onClick(button: number, ctrlKey: boolean, shiftKey: boolean, altKey: boolean, metaKey: boolean):
-      boolean {
-    if (this.urlTree === null) {
+  /** @docs-private */
+  @HostListener('click', [
+    '$event.button',
+    '$event.ctrlKey',
+    '$event.shiftKey',
+    '$event.altKey',
+    '$event.metaKey',
+  ])
+  onClick(
+    button: number,
+    ctrlKey: boolean,
+    shiftKey: boolean,
+    altKey: boolean,
+    metaKey: boolean,
+  ): boolean {
+    const urlTree = this.urlTree;
+
+    if (urlTree === null) {
       return true;
     }
 
@@ -287,8 +409,12 @@ export class RouterLink implements OnChanges, OnDestroy {
       skipLocationChange: this.skipLocationChange,
       replaceUrl: this.replaceUrl,
       state: this.state,
+      info: this.info,
     };
-    this.router.navigateByUrl(this.urlTree, extras);
+    // navigateByUrl is mocked frequently in tests... Reduce breakages when adding `catch`
+    this.router.navigateByUrl(urlTree, extras)?.catch((e) => {
+      this.applicationErrorHandler(e);
+    });
 
     // Return `false` for `<a>` elements to prevent default action
     // and cancel the native behavior, since the navigation is handled
@@ -296,33 +422,21 @@ export class RouterLink implements OnChanges, OnDestroy {
     return !this.isAnchorElement;
   }
 
-  /** @nodoc */
+  /** @docs-private */
   ngOnDestroy(): any {
     this.subscription?.unsubscribe();
   }
 
   private updateHref(): void {
-    this.href = this.urlTree !== null && this.locationStrategy ?
-        this.locationStrategy?.prepareExternalUrl(this.router.serializeUrl(this.urlTree)) :
-        null;
-
-    const sanitizedValue = this.href === null ?
-        null :
-        // This class represents a directive that can be added to both `<a>` elements,
-        // as well as other elements. As a result, we can't define security context at
-        // compile time. So the security context is deferred to runtime.
-        // The `ɵɵsanitizeUrlOrResourceUrl` selects the necessary sanitizer function
-        // based on the tag and property names. The logic mimics the one from
-        // `packages/compiler/src/schema/dom_security_schema.ts`, which is used at compile time.
-        //
-        // Note: we should investigate whether we can switch to using `@HostBinding('attr.href')`
-        // instead of applying a value via a renderer, after a final merge of the
-        // `RouterLinkWithHref` directive.
-        ɵɵsanitizeUrlOrResourceUrl(this.href, this.el.nativeElement.tagName.toLowerCase(), 'href');
-    this.applyAttributeValue('href', sanitizedValue);
+    const urlTree = this.urlTree;
+    this.reactiveHref.set(
+      urlTree !== null && this.locationStrategy
+        ? (this.locationStrategy?.prepareExternalUrl(this.router.serializeUrl(urlTree)) ?? '')
+        : null,
+    );
   }
 
-  private applyAttributeValue(attrName: string, attrValue: string|null) {
+  private applyAttributeValue(attrName: string, attrValue: string | null) {
     const renderer = this.renderer;
     const nativeElement = this.el.nativeElement;
     if (attrValue !== null) {
@@ -332,11 +446,13 @@ export class RouterLink implements OnChanges, OnDestroy {
     }
   }
 
-  get urlTree(): UrlTree|null {
-    if (this.commands === null) {
+  get urlTree(): UrlTree | null {
+    if (this.routerLinkInput === null) {
       return null;
+    } else if (isUrlTree(this.routerLinkInput)) {
+      return this.routerLinkInput;
     }
-    return this.router.createUrlTree(this.commands, {
+    return this.router.createUrlTree(this.routerLinkInput, {
       // If the `relativeTo` input is not defined, we want to use `this.route` by default.
       // Otherwise, we should use the value provided by the user in the input.
       relativeTo: this.relativeTo !== undefined ? this.relativeTo : this.route,
@@ -353,7 +469,8 @@ export class RouterLink implements OnChanges, OnDestroy {
  * An alias for the `RouterLink` directive.
  * Deprecated since v15, use `RouterLink` directive instead.
  *
- * @deprecated use `RouterLink` directive instead.
+export { RouterLink as RouterLinkWithHref };
+nstead.
  * @publicApi
  */
 export {RouterLink as RouterLinkWithHref};

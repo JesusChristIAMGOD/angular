@@ -1,30 +1,24 @@
-load("//tools:defaults.bzl", "jasmine_node_test", "ts_library")
-load("//tools/circular_dependency_test:index.bzl", "circular_dependency_test")
+load("//tools:defaults2.bzl", "angular_jasmine_test", "ts_project")
 
-circular_dependency_test(
-    name = "circular_deps_test",
-    entry_point = "angular/packages/common/upgrade/index.mjs",
-    deps = ["//packages/common/upgrade"],
-)
-
-ts_library(
+ts_project(
     name = "test_lib",
     testonly = True,
     srcs = glob(["**/*.ts"]),
-    deps = [
-        "//packages/common",
-        "//packages/common/testing",
-        "//packages/common/upgrade",
+    interop_deps = [
         "//packages/core",
         "//packages/core/testing",
-        "//packages/upgrade/static",
+    ],
+    deps = [
+        "//packages/common:common_rjs",
+        "//packages/common/testing:testing_rjs",
+        "//packages/common/upgrade:upgrade_rjs",
+        "//packages/upgrade/static:static_rjs",
     ],
 )
 
-jasmine_node_test(
+angular_jasmine_test(
     name = "test",
-    bootstrap = ["//tools/testing:node"],
-    deps = [
-        ":test_lib",
+    data = [
+        ":test_lib_rjs",
     ],
 )

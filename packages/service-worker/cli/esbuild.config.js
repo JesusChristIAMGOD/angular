@@ -3,11 +3,12 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 module.exports = {
-  resolveExtensions: ['.mjs'],
+  // TODO: Investigate if this can be removed once ng_module is migrated to ng_project
+  resolveExtensions: ['.mjs', '.js'],
   // Note: `@bazel/esbuild` has a bug and does not pass-through the format from Starlark.
   format: 'esm',
   banner: {

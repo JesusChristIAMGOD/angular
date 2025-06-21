@@ -1,13 +1,13 @@
 # Copyright Google LLC All Rights Reserved.
 #
 # Use of this source code is governed by an MIT-style license that can be
-# found in the LICENSE file at https://angular.io/license
+# found in the LICENSE file at https://angular.dev/license
 """Angular integration testing
 """
 
-load("//integration:npm_package_archives.bzl", "NPM_PACKAGE_ARCHIVES", "npm_package_archive_label")
-load("@npm//@angular/build-tooling/bazel/integration:index.bzl", "integration_test")
+load("@devinfra//bazel/integration:index.bzl", "integration_test")
 load("//:packages.bzl", "INTEGRATION_PACKAGES")
+load("//integration:npm_package_archives.bzl", "NPM_PACKAGE_ARCHIVES", "npm_package_archive_label")
 
 def _ng_integration_test(name, setup_chromium = False, **kwargs):
     "Set defaults for the npm_integration_test common to the angular repo"
