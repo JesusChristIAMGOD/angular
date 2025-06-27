@@ -1,0 +1,48 @@
+load("//adev/shared-docs:defaults.bzl", "ng_project", "ts_project")
+load("//tools:defaults2.bzl", "ng_web_test_suite", "sass_binary")
+
+package(default_visibility = ["//visibility:private"])
+
+ng_project(
+    name = "text-field",
+    srcs = [
+        "text-field.component.ts",
+    ],
+    assets = [
+        ":text-field.component.css",
+        "text-field.component.html",
+    ],
+    visibility = [
+        "//adev/shared-docs/components:__pkg__",
+        "//adev/shared-docs/components/search-dialog:__pkg__",
+    ],
+    deps = [
+        "//adev/shared-docs/components/icon:icon_rjs",
+        "//packages/common:common_rjs",
+        "//packages/core:core_rjs",
+        "//packages/forms:forms_rjs",
+    ],
+)
+
+sass_binary(
+    name = "style",
+    src = "text-field.component.scss",
+)
+
+ts_project(
+    name = "test_lib",
+    testonly = True,
+    srcs = glob(
+        ["*.spec.ts"],
+    ),
+    deps = [
+        ":text-field_rjs",
+        "//packages/core:core_rjs",
+        "//packages/core/testing:testing_rjs",
+    ],
+)
+
+ng_web_test_suite(
+    name = "test",
+    deps = [":test_lib_rjs"],
+)

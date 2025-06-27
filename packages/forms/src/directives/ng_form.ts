@@ -3,27 +3,57 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {AfterViewInit, Directive, EventEmitter, forwardRef, Inject, Input, Optional, Provider, Self} from '@angular/core';
+import {
+  AfterViewInit,
+  computed,
+  Directive,
+  EventEmitter,
+  forwardRef,
+  Inject,
+  Input,
+  Optional,
+  Provider,
+  Self,
+  signal,
+  untracked,
+  ɵWritable as Writable,
+} from '@angular/core';
 
-import {AbstractControl, FormHooks} from '../model/abstract_model';
+import {
+  AbstractControl,
+  FormHooks,
+  FormResetEvent,
+  FormSubmittedEvent,
+} from '../model/abstract_model';
 import {FormControl} from '../model/form_control';
 import {FormGroup} from '../model/form_group';
-import {composeAsyncValidators, composeValidators, NG_ASYNC_VALIDATORS, NG_VALIDATORS} from '../validators';
+import {
+  composeAsyncValidators,
+  composeValidators,
+  NG_ASYNC_VALIDATORS,
+  NG_VALIDATORS,
+} from '../validators';
 
 import {ControlContainer} from './control_container';
 import {Form} from './form_interface';
 import {NgControl} from './ng_control';
-import {NgModel} from './ng_model';
-import {NgModelGroup} from './ng_model_group';
-import {CALL_SET_DISABLED_STATE, SetDisabledStateOption, setUpControl, setUpFormContainer, syncPendingControls} from './shared';
+import type {NgModel} from './ng_model';
+import type {NgModelGroup} from './ng_model_group';
+import {
+  CALL_SET_DISABLED_STATE,
+  SetDisabledStateOption,
+  setUpControl,
+  setUpFormContainer,
+  syncPendingControls,
+} from './shared';
 import {AsyncValidator, AsyncValidatorFn, Validator, ValidatorFn} from './validators';
 
 const formDirectiveProvider: Provider = {
   provide: ControlContainer,
-  useExisting: forwardRef(() => NgForm)
+  useExisting: forwardRef(() => NgForm),
 };
 
 const resolvedPromise = (() => Promise.resolve())();
@@ -97,14 +127,20 @@ const resolvedPromise = (() => Promise.resolve())();
   providers: [formDirectiveProvider],
   host: {'(submit)': 'onSubmit($event)', '(reset)': 'onReset()'},
   outputs: ['ngSubmit'],
-  exportAs: 'ngForm'
+  exportAs: 'ngForm',
+  standalone: false,
 })
 export class NgForm extends ControlContainer implements Form, AfterViewInit {
   /**
    * @description
    * Returns whether the form submission has been triggered.
    */
-  public readonly submitted: boolean = false;
+  get submitted(): boolean {
+    return untracked(this.submittedReactive);
+  }
+  /** @internal */
+  readonly _submitted = computed(() => this.submittedReactive());
+  private readonly submittedReactive = signal(false);
 
   private _directives = new Set<NgModel>();
 
@@ -129,21 +165,27 @@ export class NgForm extends ControlContainer implements Form, AfterViewInit {
    * Possible values: `'change'` | `'blur'` | `'submit'`.
    *
    */
-  // TODO(issue/24571): remove '!'.
   @Input('ngFormOptions') options!: {updateOn?: FormHooks};
 
   constructor(
-      @Optional() @Self() @Inject(NG_VALIDATORS) validators: (Validator|ValidatorFn)[],
-      @Optional() @Self() @Inject(NG_ASYNC_VALIDATORS) asyncValidators:
-          (AsyncValidator|AsyncValidatorFn)[],
-      @Optional() @Inject(CALL_SET_DISABLED_STATE) private callSetDisabledState?:
-          SetDisabledStateOption) {
+    @Optional() @Self() @Inject(NG_VALIDATORS) validators: (Validator | ValidatorFn)[],
+    @Optional()
+    @Self()
+    @Inject(NG_ASYNC_VALIDATORS)
+    asyncValidators: (AsyncValidator | AsyncValidatorFn)[],
+    @Optional()
+    @Inject(CALL_SET_DISABLED_STATE)
+    private callSetDisabledState?: SetDisabledStateOption,
+  ) {
     super();
-    this.form =
-        new FormGroup({}, composeValidators(validators), composeAsyncValidators(asyncValidators));
+    this.form = new FormGroup(
+      {},
+      composeValidators(validators),
+      composeAsyncValidators(asyncValidators),
+    );
   }
 
-  /** @nodoc */
+  /** @docs-private */
   ngAfterViewInit() {
     this._setUpdateStrategy();
   }
@@ -191,8 +233,9 @@ export class NgForm extends ControlContainer implements Form, AfterViewInit {
   addControl(dir: NgModel): void {
     resolvedPromise.then(() => {
       const container = this._findContainer(dir.path);
-      (dir as {control: FormControl}).control =
-          <FormControl>container.registerControl(dir.name, dir.control);
+      (dir as Writable<NgModel>).control = <FormControl>(
+        container.registerControl(dir.name, dir.control)
+      );
       setUpControl(dir.control, dir, this.callSetDisabledState);
       dir.control.updateValueAndValidity({emitEvent: false});
       this._directives.add(dir);
@@ -297,9 +340,10 @@ export class NgForm extends ControlContainer implements Form, AfterViewInit {
    * @param $event The "submit" event object
    */
   onSubmit($event: Event): boolean {
-    (this as {submitted: boolean}).submitted = true;
+    this.submittedReactive.set(true);
     syncPendingControls(this.form, this._directives);
     this.ngSubmit.emit($event);
+    this.form._events.next(new FormSubmittedEvent(this.control));
     // Forms with `method="dialog"` have some special behavior
     // that won't reload the page and that shouldn't be prevented.
     return ($event?.target as HTMLFormElement | null)?.method === 'dialog';
@@ -321,7 +365,8 @@ export class NgForm extends ControlContainer implements Form, AfterViewInit {
    */
   resetForm(value: any = undefined): void {
     this.form.reset(value);
-    (this as {submitted: boolean}).submitted = false;
+    this.submittedReactive.set(false);
+    this.form._events.next(new FormResetEvent(this.form));
   }
 
   private _setUpdateStrategy() {

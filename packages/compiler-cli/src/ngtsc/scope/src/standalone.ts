@@ -3,14 +3,14 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {Reference} from '../../imports';
 import {DirectiveMeta, MetadataReader, NgModuleMeta, PipeMeta} from '../../metadata';
 import {ClassDeclaration} from '../../reflection';
 
-import {ComponentScopeKind, ComponentScopeReader, ExportScope, RemoteScope, StandaloneScope} from './api';
+import {ComponentScopeKind, ComponentScopeReader, ExportScope, StandaloneScope} from './api';
 import {DtsModuleScopeResolver} from './dependency';
 import {LocalModuleScopeRegistry} from './local';
 
@@ -19,25 +19,33 @@ import {LocalModuleScopeRegistry} from './local';
  * scopes where necessary.
  */
 export class StandaloneComponentScopeReader implements ComponentScopeReader {
-  private cache = new Map<ClassDeclaration, StandaloneScope|null>();
+  private cache = new Map<ClassDeclaration, StandaloneScope | null>();
 
   constructor(
-      private metaReader: MetadataReader, private localModuleReader: LocalModuleScopeRegistry,
-      private dtsModuleReader: DtsModuleScopeResolver) {}
+    private metaReader: MetadataReader,
+    private localModuleReader: LocalModuleScopeRegistry,
+    private dtsModuleReader: DtsModuleScopeResolver,
+  ) {}
 
-  getScopeForComponent(clazz: ClassDeclaration): StandaloneScope|null {
+  getScopeForComponent(clazz: ClassDeclaration): StandaloneScope | null {
     if (!this.cache.has(clazz)) {
       const clazzRef = new Reference(clazz);
       const clazzMeta = this.metaReader.getDirectiveMetadata(clazzRef);
 
-      if (clazzMeta === null || !clazzMeta.isComponent || !clazzMeta.isStandalone) {
+      if (
+        clazzMeta === null ||
+        !clazzMeta.isComponent ||
+        !clazzMeta.isStandalone ||
+        clazzMeta.selectorlessEnabled
+      ) {
         this.cache.set(clazz, null);
         return null;
       }
 
       // A standalone component always has itself in scope, so add `clazzMeta` during
       // initialization.
-      const dependencies = new Set<DirectiveMeta|PipeMeta|NgModuleMeta>([clazzMeta]);
+      const dependencies = new Set<DirectiveMeta | PipeMeta | NgModuleMeta>([clazzMeta]);
+      const deferredDependencies = new Set<DirectiveMeta | PipeMeta>();
       const seen = new Set<ClassDeclaration>([clazz]);
       let isPoisoned = clazzMeta.isPoisoned;
 
@@ -66,7 +74,7 @@ export class StandaloneComponentScopeReader implements ComponentScopeReader {
           if (ngModuleMeta !== null) {
             dependencies.add({...ngModuleMeta, ref});
 
-            let ngModuleScope: ExportScope|null;
+            let ngModuleScope: ExportScope | null;
             if (ref.node.getSourceFile().isDeclarationFile) {
               ngModuleScope = this.dtsModuleReader.resolve(ref);
             } else {
@@ -95,10 +103,29 @@ export class StandaloneComponentScopeReader implements ComponentScopeReader {
         }
       }
 
+      if (clazzMeta.deferredImports !== null) {
+        for (const ref of clazzMeta.deferredImports) {
+          const dirMeta = this.metaReader.getDirectiveMetadata(ref);
+          if (dirMeta !== null) {
+            deferredDependencies.add({...dirMeta, ref, isExplicitlyDeferred: true});
+            isPoisoned = isPoisoned || dirMeta.isPoisoned || !dirMeta.isStandalone;
+            continue;
+          }
+
+          const pipeMeta = this.metaReader.getPipeMetadata(ref);
+          if (pipeMeta !== null) {
+            deferredDependencies.add({...pipeMeta, ref, isExplicitlyDeferred: true});
+            isPoisoned = isPoisoned || !pipeMeta.isStandalone;
+            continue;
+          }
+        }
+      }
+
       this.cache.set(clazz, {
         kind: ComponentScopeKind.Standalone,
         component: clazz,
         dependencies: Array.from(dependencies),
+        deferredDependencies: Array.from(deferredDependencies),
         isPoisoned,
         schemas: clazzMeta.schemas ?? [],
       });

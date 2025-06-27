@@ -3,19 +3,56 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
-import {AST, BindingPipe, LiteralPrimitive, PropertyRead, PropertyWrite, SafePropertyRead, TmplAstBoundAttribute, TmplAstBoundEvent, TmplAstNode, TmplAstReference, TmplAstTextAttribute, TmplAstVariable} from '@angular/compiler';
+import {
+  AST,
+  Binary,
+  BindingPipe,
+  LiteralPrimitive,
+  PropertyRead,
+  SafePropertyRead,
+  TmplAstBoundAttribute,
+  TmplAstBoundEvent,
+  TmplAstLetDeclaration,
+  TmplAstNode,
+  TmplAstElement,
+  TmplAstReference,
+  TmplAstTextAttribute,
+  TmplAstVariable,
+  TmplAstComponent,
+  TmplAstDirective,
+  TmplAstRecursiveVisitor,
+  tmplAstVisitAll,
+} from '@angular/compiler';
 import {NgCompiler} from '@angular/compiler-cli/src/ngtsc/core';
 import {absoluteFrom} from '@angular/compiler-cli/src/ngtsc/file_system';
 import {DirectiveMeta, PipeMeta} from '@angular/compiler-cli/src/ngtsc/metadata';
-import {DirectiveSymbol, Symbol, SymbolKind, TcbLocation, TemplateTypeChecker} from '@angular/compiler-cli/src/ngtsc/typecheck/api';
-import {ExpressionIdentifier, hasExpressionIdentifier} from '@angular/compiler-cli/src/ngtsc/typecheck/src/comments';
+import {
+  DirectiveSymbol,
+  SelectorlessComponentSymbol,
+  SelectorlessDirectiveSymbol,
+  Symbol,
+  SymbolKind,
+  TcbLocation,
+  TemplateTypeChecker,
+} from '@angular/compiler-cli/src/ngtsc/typecheck/api';
+import {
+  ExpressionIdentifier,
+  hasExpressionIdentifier,
+} from '@angular/compiler-cli/src/ngtsc/typecheck/src/comments';
 import ts from 'typescript';
 
 import {getTargetAtPosition, TargetNodeKind} from './template_target';
-import {findTightestNode, getParentClassDeclaration} from './ts_utils';
-import {getDirectiveMatchesForAttribute, getDirectiveMatchesForElementTag, getTemplateLocationFromTcbLocation, isWithin, TemplateInfo, toTextSpan} from './utils';
+import {findTightestNode, getParentClassDeclaration} from './utils/ts_utils';
+import {
+  getDirectiveMatchesForAttribute,
+  getDirectiveMatchesForElementTag,
+  getTemplateLocationFromTcbLocation,
+  isWithin,
+  TypeCheckInfo,
+  toTextSpan,
+} from './utils';
 
 /** Represents a location in a file. */
 export interface FilePosition {
@@ -33,7 +70,7 @@ export interface TemplateLocationDetails {
   /**
    * A target node in a template.
    */
-  templateTarget: TmplAstNode|AST;
+  templateTarget: TmplAstNode | AST;
 
   /**
    * TypeScript locations which the template node maps to. A given template node might map to
@@ -48,29 +85,31 @@ export interface TemplateLocationDetails {
   symbol: Symbol;
 }
 
-
 /**
  * Takes a position in a template and finds equivalent targets in TS files as well as details about
  * the targeted template node.
  */
 export function getTargetDetailsAtTemplatePosition(
-    {template, component}: TemplateInfo, position: number,
-    templateTypeChecker: TemplateTypeChecker): TemplateLocationDetails[]|null {
+  info: TypeCheckInfo,
+  position: number,
+  templateTypeChecker: TemplateTypeChecker,
+): TemplateLocationDetails[] | null {
   // Find the AST node in the template at the position.
-  const positionDetails = getTargetAtPosition(template, position);
+  const positionDetails = getTargetAtPosition(info.nodes, position);
   if (positionDetails === null) {
     return null;
   }
 
-  const nodes = positionDetails.context.kind === TargetNodeKind.TwoWayBindingContext ?
-      positionDetails.context.nodes :
-      [positionDetails.context.node];
+  const nodes =
+    positionDetails.context.kind === TargetNodeKind.TwoWayBindingContext
+      ? positionDetails.context.nodes
+      : [positionDetails.context.node];
 
   const details: TemplateLocationDetails[] = [];
 
   for (const node of nodes) {
     // Get the information about the TCB at the template position.
-    const symbol = templateTypeChecker.getSymbolOfNode(node, component);
+    const symbol = templateTypeChecker.getSymbolOfNode(node, info.declaration);
     if (symbol === null) {
       continue;
     }
@@ -99,7 +138,10 @@ export function getTargetDetailsAtTemplatePosition(
           return null;
         }
         const directives = getDirectiveMatchesForAttribute(
-            node.name, symbol.host.templateNode, symbol.host.directives);
+          node.name,
+          symbol.host.templateNode,
+          symbol.host.directives,
+        );
         details.push({
           typescriptLocations: getPositionsForDirectives(directives),
           templateTarget,
@@ -116,9 +158,11 @@ export function getTargetDetailsAtTemplatePosition(
         break;
       }
       case SymbolKind.Variable: {
-        if ((templateTarget instanceof TmplAstVariable)) {
-          if (templateTarget.valueSpan !== undefined &&
-              isWithin(position, templateTarget.valueSpan)) {
+        if (templateTarget instanceof TmplAstVariable) {
+          if (
+            templateTarget.valueSpan !== undefined &&
+            isWithin(position, templateTarget.valueSpan)
+          ) {
             // In the valueSpan of the variable, we want to get the reference of the initializer.
             details.push({
               typescriptLocations: [toFilePosition(symbol.initializerLocation)],
@@ -144,10 +188,26 @@ export function getTargetDetailsAtTemplatePosition(
         }
         break;
       }
+      case SymbolKind.LetDeclaration:
+        // If the templateNode isn't on a let declaration, it has to be on a usage of it
+        // somewhere in the template. Otherwise only pick up when it's within the name.
+        if (
+          !(templateTarget instanceof TmplAstLetDeclaration) ||
+          isWithin(position, templateTarget.nameSpan)
+        ) {
+          details.push({
+            typescriptLocations: [toFilePosition(symbol.localVarLocation)],
+            templateTarget,
+            symbol,
+          });
+        }
+        break;
       case SymbolKind.Input:
       case SymbolKind.Output: {
         details.push({
-          typescriptLocations: symbol.bindings.map(binding => toFilePosition(binding.tcbLocation)),
+          typescriptLocations: symbol.bindings.map((binding) =>
+            toFilePosition(binding.tcbLocation),
+          ),
           templateTarget,
           symbol,
         });
@@ -162,6 +222,17 @@ export function getTargetDetailsAtTemplatePosition(
         });
         break;
       }
+      case SymbolKind.SelectorlessDirective:
+      case SymbolKind.SelectorlessComponent:
+        const dirPosition = getPositionForDirective(symbol);
+        if (dirPosition !== null) {
+          details.push({
+            typescriptLocations: [dirPosition],
+            templateTarget,
+            symbol,
+          });
+        }
+        break;
     }
   }
 
@@ -174,17 +245,31 @@ export function getTargetDetailsAtTemplatePosition(
 function getPositionsForDirectives(directives: Set<DirectiveSymbol>): FilePosition[] {
   const allDirectives: FilePosition[] = [];
   for (const dir of directives.values()) {
-    const dirClass = dir.tsSymbol.valueDeclaration;
-    if (dirClass === undefined || !ts.isClassDeclaration(dirClass) || dirClass.name === undefined) {
-      continue;
+    const position = getPositionForDirective(dir);
+    if (position !== null) {
+      allDirectives.push(position);
     }
+  }
+  return allDirectives;
+}
 
-    const {fileName} = dirClass.getSourceFile();
-    const position = dirClass.name.getStart();
-    allDirectives.push({fileName, position});
+/** Gets the `FilePosition` for a single directive symbol. */
+function getPositionForDirective(
+  directive: DirectiveSymbol | SelectorlessComponentSymbol | SelectorlessDirectiveSymbol,
+): FilePosition | null {
+  const declaration = directive.tsSymbol?.valueDeclaration;
+
+  if (
+    declaration !== undefined &&
+    ts.isClassDeclaration(declaration) &&
+    declaration.name !== undefined
+  ) {
+    const {fileName} = declaration.getSourceFile();
+    const position = declaration.name.getStart();
+    return {fileName, position};
   }
 
-  return allDirectives;
+  return null;
 }
 
 /**
@@ -204,26 +289,48 @@ export function createLocationKey(ds: ts.DocumentSpan) {
  * matches. If it does not, this function will return `null`.
  */
 export function convertToTemplateDocumentSpan<T extends ts.DocumentSpan>(
-    shimDocumentSpan: T, templateTypeChecker: TemplateTypeChecker, program: ts.Program,
-    requiredNodeText?: string): T|null {
+  shimDocumentSpan: T,
+  templateTypeChecker: TemplateTypeChecker,
+  program: ts.Program,
+  requiredNodeText?: string,
+): T | null {
   const sf = program.getSourceFile(shimDocumentSpan.fileName);
   if (sf === undefined) {
     return null;
   }
   const tcbNode = findTightestNode(sf, shimDocumentSpan.textSpan.start);
-  if (tcbNode === undefined ||
-      hasExpressionIdentifier(sf, tcbNode, ExpressionIdentifier.EVENT_PARAMETER)) {
+  if (
+    tcbNode === undefined ||
+    hasExpressionIdentifier(sf, tcbNode, ExpressionIdentifier.EVENT_PARAMETER)
+  ) {
     // If the reference result is the $event parameter in the subscribe/addEventListener
     // function in the TCB, we want to filter this result out of the references. We really only
     // want to return references to the parameter in the template itself.
     return null;
   }
+  // Variables in the typecheck block are generated with the type on the right hand
+  // side: `var _t1 = null! as i1.DirA`. Finding references of DirA will return the type
+  // assertion and we need to map it back to the variable identifier _t1.
+  if (hasExpressionIdentifier(sf, tcbNode, ExpressionIdentifier.VARIABLE_AS_EXPRESSION)) {
+    let newNode = tcbNode;
+    while (!ts.isVariableDeclaration(newNode)) {
+      newNode = newNode.parent;
+    }
+    newNode = newNode.name;
+    shimDocumentSpan.textSpan = {
+      start: newNode.getStart(),
+      length: newNode.getEnd() - newNode.getStart(),
+    };
+  }
   // TODO(atscott): Determine how to consistently resolve paths. i.e. with the project
   // serverHost or LSParseConfigHost in the adapter. We should have a better defined way to
   // normalize paths.
   const mapping = getTemplateLocationFromTcbLocation(
-      templateTypeChecker, absoluteFrom(shimDocumentSpan.fileName), /* tcbIsShim */ true,
-      shimDocumentSpan.textSpan.start);
+    templateTypeChecker,
+    absoluteFrom(shimDocumentSpan.fileName),
+    /* tcbIsShim */ true,
+    shimDocumentSpan.textSpan.start,
+  );
   if (mapping === null) {
     return null;
   }
@@ -249,24 +356,35 @@ export function convertToTemplateDocumentSpan<T extends ts.DocumentSpan>(
  * Finds the text and `ts.TextSpan` for the node at a position in a template.
  */
 export function getRenameTextAndSpanAtPosition(
-    node: TmplAstNode|AST, position: number): {text: string, span: ts.TextSpan}|null {
-  if (node instanceof TmplAstBoundAttribute || node instanceof TmplAstTextAttribute ||
-      node instanceof TmplAstBoundEvent) {
-    if (node.keySpan === undefined) {
-      return null;
-    }
-    return {text: node.name, span: toTextSpan(node.keySpan)};
+  node: TmplAstNode | AST,
+  position: number,
+): {text: string; span: ts.TextSpan} | null {
+  if (
+    node instanceof TmplAstBoundAttribute ||
+    node instanceof TmplAstTextAttribute ||
+    node instanceof TmplAstBoundEvent
+  ) {
+    return node.keySpan === undefined ? null : {text: node.name, span: toTextSpan(node.keySpan)};
+  } else if (node instanceof TmplAstLetDeclaration && isWithin(position, node.nameSpan)) {
+    return {text: node.nameSpan.toString(), span: toTextSpan(node.nameSpan)};
   } else if (node instanceof TmplAstVariable || node instanceof TmplAstReference) {
     if (isWithin(position, node.keySpan)) {
       return {text: node.keySpan.toString(), span: toTextSpan(node.keySpan)};
     } else if (node.valueSpan && isWithin(position, node.valueSpan)) {
       return {text: node.valueSpan.toString(), span: toTextSpan(node.valueSpan)};
     }
-  }
-
-  if (node instanceof PropertyRead || node instanceof PropertyWrite ||
-      node instanceof SafePropertyRead || node instanceof BindingPipe) {
+  } else if (
+    node instanceof PropertyRead ||
+    node instanceof SafePropertyRead ||
+    node instanceof BindingPipe
+  ) {
     return {text: node.name, span: toTextSpan(node.nameSpan)};
+  } else if (
+    node instanceof Binary &&
+    node.operation === '=' &&
+    node.left instanceof PropertyRead
+  ) {
+    return getRenameTextAndSpanAtPosition(node.left, position);
   } else if (node instanceof LiteralPrimitive) {
     const span = toTextSpan(node.sourceSpan);
     const text = node.value;
@@ -276,6 +394,10 @@ export function getRenameTextAndSpanAtPosition(
       span.length -= 2;
     }
     return {text, span};
+  } else if (node instanceof TmplAstElement || node instanceof TmplAstDirective) {
+    return {text: node.name, span: toTextSpan(node.startSourceSpan)};
+  } else if (node instanceof TmplAstComponent) {
+    return {text: node.componentName, span: toTextSpan(node.startSourceSpan)};
   }
 
   return null;
@@ -286,11 +408,31 @@ export function getRenameTextAndSpanAtPosition(
  *
  * Returns `null` if the node has no parent class or there is no meta associated with the class.
  */
-export function getParentClassMeta(requestNode: ts.Node, compiler: NgCompiler): PipeMeta|
-    DirectiveMeta|null {
+export function getParentClassMeta(
+  requestNode: ts.Node,
+  compiler: NgCompiler,
+): PipeMeta | DirectiveMeta | null {
   const parentClass = getParentClassDeclaration(requestNode);
   if (parentClass === undefined) {
     return null;
   }
   return compiler.getMeta(parentClass);
+}
+
+/** Visitor that collects all selectorless AST nodes from a template. */
+export class SelectorlessCollector extends TmplAstRecursiveVisitor {
+  private nodes: (TmplAstComponent | TmplAstDirective)[] = [];
+
+  static getSelectorlessNodes(nodes: TmplAstNode[]): (TmplAstComponent | TmplAstDirective)[] {
+    const visitor = new SelectorlessCollector();
+    tmplAstVisitAll(visitor, nodes);
+    return visitor.nodes;
+  }
+
+  visit(node: TmplAstNode) {
+    if (node instanceof TmplAstComponent || node instanceof TmplAstDirective) {
+      this.nodes.push(node);
+    }
+    node.visit(this);
+  }
 }

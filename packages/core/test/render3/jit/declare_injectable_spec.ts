@@ -3,15 +3,39 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {forwardRef, InjectionToken, Injector, ɵcreateInjector, ɵsetCurrentInjector, ɵɵdefineInjector, ɵɵInjectableDeclaration, ɵɵngDeclareInjectable, ɵɵngDeclareInjector, ɵɵngDeclareNgModule} from '@angular/core';
+import {
+  forwardRef,
+  InjectionToken,
+  Injector,
+  ɵcreateInjector,
+  ɵInjectorProfilerContext,
+  ɵsetCurrentInjector,
+  ɵsetInjectorProfilerContext,
+  ɵɵdefineInjector,
+  ɵɵInjectableDeclaration,
+  ɵɵngDeclareInjectable,
+  ɵɵngDeclareInjector,
+} from '../../../src/core';
+import {RetrievingInjector} from '../../../src/di/injector_compatibility';
 
 describe('Injectable declaration jit compilation', () => {
-  let previousInjector: Injector|null|undefined;
-  beforeEach(() => previousInjector = ɵsetCurrentInjector(ɵcreateInjector(TestInjector)));
-  afterEach(() => ɵsetCurrentInjector(previousInjector));
+  let previousInjector: RetrievingInjector | null | undefined;
+  let previousInjectorProfilerContext: ɵInjectorProfilerContext;
+  beforeEach(() => {
+    const injector = new RetrievingInjector(ɵcreateInjector(TestInjector));
+    previousInjector = ɵsetCurrentInjector(injector) as RetrievingInjector;
+    previousInjectorProfilerContext = ɵsetInjectorProfilerContext({
+      injector: injector.injector,
+      token: null,
+    });
+  });
+  afterEach(() => {
+    ɵsetCurrentInjector(previousInjector);
+    previousInjectorProfilerContext = ɵsetInjectorProfilerContext(previousInjectorProfilerContext);
+  });
 
   it('should compile a minimal injectable declaration that delegates to `ɵfac`', () => {
     const provider = Minimal.ɵprov as ɵɵInjectableDeclaration<Minimal>;
@@ -70,9 +94,9 @@ describe('Injectable declaration jit compilation', () => {
     class TestClass {
       static ɵprov = ɵɵngDeclareInjectable({
         type: TestClass,
-        useClass: forwardRef(function() {
+        useClass: forwardRef(function () {
           return FutureClass;
-        })
+        }),
       });
     }
     class FutureClass {
@@ -113,8 +137,10 @@ class UseClass {
 
 class UseFactory {
   constructor(readonly msg: string) {}
-  static ɵprov =
-      ɵɵngDeclareInjectable({type: UseFactory, useFactory: () => new UseFactory('from factory')});
+  static ɵprov = ɵɵngDeclareInjectable({
+    type: UseFactory,
+    useFactory: () => new UseFactory('from factory'),
+  });
 }
 
 class UseValue {
@@ -130,8 +156,11 @@ class UseExisting {
 
 class DependingClass {
   constructor(readonly testClass: UseClass) {}
-  static ɵprov = ɵɵngDeclareInjectable(
-      {type: DependingClass, useClass: DependingClass, deps: [{token: UseClass}]});
+  static ɵprov = ɵɵngDeclareInjectable({
+    type: DependingClass,
+    useClass: DependingClass,
+    deps: [{token: UseClass}],
+  });
 }
 
 class DependingFactory {
@@ -139,7 +168,7 @@ class DependingFactory {
   static ɵprov = ɵɵngDeclareInjectable({
     type: DependingFactory,
     useFactory: (dep: UseClass) => new DependingFactory(dep),
-    deps: [{token: UseClass}]
+    deps: [{token: UseClass}],
   });
 }
 

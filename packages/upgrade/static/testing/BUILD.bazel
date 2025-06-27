@@ -1,10 +1,11 @@
-load("//tools:defaults.bzl", "ng_module")
+load("//tools:defaults.bzl", "generate_api_docs")
+load("//tools:defaults2.bzl", "ng_project")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files(["package.json"])
 
-ng_module(
+ng_project(
     name = "testing",
     srcs = glob(
         [
@@ -12,9 +13,11 @@ ng_module(
             "src/*.ts",
         ],
     ),
-    deps = [
+    interop_deps = [
         "//packages/core/testing",
-        "//packages/upgrade/src/common",
+    ],
+    deps = [
+        "//packages/upgrade/static:static_rjs",
     ],
 )
 
@@ -24,4 +27,14 @@ filegroup(
         "*.ts",
         "src/**/*.ts",
     ]) + ["PACKAGE.md"],
+)
+
+generate_api_docs(
+    name = "upgrade_static_testing_docs",
+    srcs = [
+        ":files_for_docgen",
+        "//packages:common_files_and_deps_for_docs",
+    ],
+    entry_point = ":index.ts",
+    module_name = "@angular/upgrade/static/testing",
 )

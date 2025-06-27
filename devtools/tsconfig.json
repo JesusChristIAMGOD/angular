@@ -1,19 +1,11 @@
 {
-  "compileOnSave": false,
   "compilerOptions": {
-    "plugins": [
-      {
-        "name": "@bazel/tsetse",
-        "disabledRules": [
-          "must-type-assert-json-parse"
-        ]
-      }
-    ],
-    "baseUrl": "../",
-    "outDir": "bazel-out/darwin-fastbuild/bin",
     "sourceMap": true,
+    "inlineSources": true,
     "declaration": true,
-    "strictNullChecks": true,
+    "strict": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
     "downlevelIteration": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
@@ -22,36 +14,17 @@
     "esModuleInterop": true,
     "importHelpers": true,
     "target": "es2020",
-    "lib": ["es2020", "dom"],
-    "typeRoots": [
-      "./devtools/node_modules/@types",
-    ],
-    "types": [
-      "angular",
-      "jasmine",
-      "node"
-    ],
+    "lib": ["es2020", "dom", "dom.iterable"],
+    "types": ["chrome"],
     "paths": {
       "@angular/*": [
-        "./packages/*",
-        "./dist/bin/packages/*"
+        "../packages/*",
       ],
-      "ng-devtools": [
-        "./devtools/projects/ng-devtools/src/public-api.ts",
-      ],
-      "ng-devtools-backend": [
-        "./devtools/projects/ng-devtools-backend/src/public-api.ts",
-      ],
-      "protocol": [
-        "./devtools/projects/protocol/src/public-api.ts",
-      ],
-      "shared-utils": [
-        "./devtools/projects/shared-utils/src/public-api.ts",
-      ]
     },
   },
   "angularCompilerOptions": {
-    "fullTemplateTypeCheck": true,
-    "strictInjectionParameters": true
+    "strictTemplates": true,
+    "strictInjectionParameters": true,
+    "unusedStandaloneImports": "error"
   }
 }

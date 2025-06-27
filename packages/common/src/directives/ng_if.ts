@@ -3,11 +3,20 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {Directive, EmbeddedViewRef, Input, TemplateRef, ViewContainerRef, ɵstringify as stringify} from '@angular/core';
+import {
+  Directive,
+  EmbeddedViewRef,
+  Input,
+  TemplateRef,
+  ViewContainerRef,
+  ɵstringify as stringify,
+  ɵRuntimeError as RuntimeError,
+} from '@angular/core';
 
+import {RuntimeErrorCode} from '../errors';
 
 /**
  * A structural directive that conditionally includes a template based on the value of
@@ -17,7 +26,7 @@ import {Directive, EmbeddedViewRef, Input, TemplateRef, ViewContainerRef, ɵstri
  * Angular renders the template provided in an optional `else` clause. The default
  * template for the `else` clause is blank.
  *
- * A [shorthand form](guide/structural-directives#asterisk) of the directive,
+ * A [shorthand form](guide/directives/structural-directives#asterisk) of the directive,
  * `*ngIf="condition"`, is generally used, provided
  * as an attribute of the anchor element for the inserted template.
  * Angular expands this into a more explicit version, in which the anchor element
@@ -25,27 +34,27 @@ import {Directive, EmbeddedViewRef, Input, TemplateRef, ViewContainerRef, ɵstri
  *
  * Simple form with shorthand syntax:
  *
- * ```
+ * ```html
  * <div *ngIf="condition">Content to render when condition is true.</div>
  * ```
  *
  * Simple form with expanded syntax:
  *
- * ```
+ * ```html
  * <ng-template [ngIf]="condition"><div>Content to render when condition is
  * true.</div></ng-template>
  * ```
  *
  * Form with an "else" block:
  *
- * ```
+ * ```html
  * <div *ngIf="condition; else elseBlock">Content to render when condition is true.</div>
  * <ng-template #elseBlock>Content to render when condition is false.</ng-template>
  * ```
  *
  * Shorthand form with "then" and "else" blocks:
  *
- * ```
+ * ```html
  * <div *ngIf="condition; then thenBlock else elseBlock"></div>
  * <ng-template #thenBlock>Content to render when condition is true.</ng-template>
  * <ng-template #elseBlock>Content to render when condition is false.</ng-template>
@@ -53,7 +62,7 @@ import {Directive, EmbeddedViewRef, Input, TemplateRef, ViewContainerRef, ɵstri
  *
  * Form with storing the value locally:
  *
- * ```
+ * ```html
  * <div *ngIf="condition as value; else elseBlock">{{value}}</div>
  * <ng-template #elseBlock>Content to render when value is null.</ng-template>
  * ```
@@ -110,7 +119,7 @@ import {Directive, EmbeddedViewRef, Input, TemplateRef, ViewContainerRef, ɵstri
  * for the "then" and "else" clauses. For example, consider the following shorthand statement,
  * that is meant to show a loading page while waiting for data to be loaded.
  *
- * ```
+ * ```html
  * <div class="hero-list" *ngIf="heroes else loading">
  *  ...
  * </div>
@@ -129,7 +138,7 @@ import {Directive, EmbeddedViewRef, Input, TemplateRef, ViewContainerRef, ɵstri
  * The anchor element containing the template for the "then" clause becomes
  * the content of this unlabeled `<ng-template>` tag.
  *
- * ```
+ * ```html
  * <ng-template [ngIf]="heroes" [ngIfElse]="loading">
  *  <div class="hero-list">
  *   ...
@@ -143,28 +152,34 @@ import {Directive, EmbeddedViewRef, Input, TemplateRef, ViewContainerRef, ɵstri
  *
  * The presence of the implicit template object has implications for the nesting of
  * structural directives. For more on this subject, see
- * [Structural Directives](guide/structural-directives#one-per-element).
+ * [Structural Directives](guide/directives/structural-directives#one-per-element).
  *
  * @ngModule CommonModule
  * @publicApi
+ *
+ * @deprecated 20.0
+ * Use the `@if` block instead. Intent to remove in v22
  */
 @Directive({
   selector: '[ngIf]',
-  standalone: true,
 })
 export class NgIf<T = unknown> {
   private _context: NgIfContext<T> = new NgIfContext<T>();
-  private _thenTemplateRef: TemplateRef<NgIfContext<T>>|null = null;
-  private _elseTemplateRef: TemplateRef<NgIfContext<T>>|null = null;
-  private _thenViewRef: EmbeddedViewRef<NgIfContext<T>>|null = null;
-  private _elseViewRef: EmbeddedViewRef<NgIfContext<T>>|null = null;
+  private _thenTemplateRef: TemplateRef<NgIfContext<T>> | null = null;
+  private _elseTemplateRef: TemplateRef<NgIfContext<T>> | null = null;
+  private _thenViewRef: EmbeddedViewRef<NgIfContext<T>> | null = null;
+  private _elseViewRef: EmbeddedViewRef<NgIfContext<T>> | null = null;
 
-  constructor(private _viewContainer: ViewContainerRef, templateRef: TemplateRef<NgIfContext<T>>) {
+  constructor(
+    private _viewContainer: ViewContainerRef,
+    templateRef: TemplateRef<NgIfContext<T>>,
+  ) {
     this._thenTemplateRef = templateRef;
   }
 
   /**
    * The Boolean expression to evaluate as the condition for showing a template.
+   * @deprecated Use the `@if` block instead. Intent to remove in v22
    */
   @Input()
   set ngIf(condition: T) {
@@ -174,23 +189,25 @@ export class NgIf<T = unknown> {
 
   /**
    * A template to show if the condition expression evaluates to true.
+   * @deprecated Use the `@if` block instead. Intent to remove in v22
    */
   @Input()
-  set ngIfThen(templateRef: TemplateRef<NgIfContext<T>>|null) {
-    assertTemplate('ngIfThen', templateRef);
+  set ngIfThen(templateRef: TemplateRef<NgIfContext<T>> | null) {
+    assertTemplate(templateRef, (typeof ngDevMode === 'undefined' || ngDevMode) && 'ngIfThen');
     this._thenTemplateRef = templateRef;
-    this._thenViewRef = null;  // clear previous view if any.
+    this._thenViewRef = null; // clear previous view if any.
     this._updateView();
   }
 
   /**
    * A template to show if the condition expression evaluates to false.
+   * @deprecated Use the `@if` block instead. Intent to remove in v22
    */
   @Input()
-  set ngIfElse(templateRef: TemplateRef<NgIfContext<T>>|null) {
-    assertTemplate('ngIfElse', templateRef);
+  set ngIfElse(templateRef: TemplateRef<NgIfContext<T>> | null) {
+    assertTemplate(templateRef, (typeof ngDevMode === 'undefined' || ngDevMode) && 'ngIfElse');
     this._elseTemplateRef = templateRef;
-    this._elseViewRef = null;  // clear previous view if any.
+    this._elseViewRef = null; // clear previous view if any.
     this._updateView();
   }
 
@@ -200,8 +217,10 @@ export class NgIf<T = unknown> {
         this._viewContainer.clear();
         this._elseViewRef = null;
         if (this._thenTemplateRef) {
-          this._thenViewRef =
-              this._viewContainer.createEmbeddedView(this._thenTemplateRef, this._context);
+          this._thenViewRef = this._viewContainer.createEmbeddedView(
+            this._thenTemplateRef,
+            this._context,
+          );
         }
       }
     } else {
@@ -209,8 +228,10 @@ export class NgIf<T = unknown> {
         this._viewContainer.clear();
         this._thenViewRef = null;
         if (this._elseTemplateRef) {
-          this._elseViewRef =
-              this._viewContainer.createEmbeddedView(this._elseTemplateRef, this._context);
+          this._elseViewRef = this._viewContainer.createEmbeddedView(
+            this._elseTemplateRef,
+            this._context,
+          );
         }
       }
     }
@@ -235,23 +256,34 @@ export class NgIf<T = unknown> {
    * The presence of this method is a signal to the Ivy template type-check compiler that the
    * `NgIf` structural directive renders its template with a specific context type.
    */
-  static ngTemplateContextGuard<T>(dir: NgIf<T>, ctx: any):
-      ctx is NgIfContext<Exclude<T, false|0|''|null|undefined>> {
+  static ngTemplateContextGuard<T>(
+    dir: NgIf<T>,
+    ctx: any,
+  ): ctx is NgIfContext<Exclude<T, false | 0 | '' | null | undefined>> {
     return true;
   }
 }
 
 /**
  * @publicApi
+ *
+ * @deprecated 20.0
+ * The ngIf directive is deprecated in favor of the @if block instead.
  */
 export class NgIfContext<T = unknown> {
   public $implicit: T = null!;
   public ngIf: T = null!;
 }
 
-function assertTemplate(property: string, templateRef: TemplateRef<any>|null): void {
-  const isTemplateRefOrNull = !!(!templateRef || templateRef.createEmbeddedView);
-  if (!isTemplateRefOrNull) {
-    throw new Error(`${property} must be a TemplateRef, but received '${stringify(templateRef)}'.`);
+function assertTemplate(
+  templateRef: TemplateRef<any> | null,
+  property: string | false | null,
+): void {
+  if (templateRef && !templateRef.createEmbeddedView) {
+    throw new RuntimeError(
+      RuntimeErrorCode.NG_IF_NOT_A_TEMPLATE_REF,
+      (typeof ngDevMode === 'undefined' || ngDevMode) &&
+        `${property} must be a TemplateRef, but received '${stringify(templateRef)}'.`,
+    );
   }
 }

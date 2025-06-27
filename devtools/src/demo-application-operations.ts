@@ -3,23 +3,33 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {ApplicationOperations} from 'ng-devtools';
-import {DirectivePosition, ElementPosition} from 'protocol';
+import {ApplicationOperations} from '../projects/ng-devtools';
+import {DirectivePosition, ElementPosition, SignalNodePosition} from '../projects/protocol';
 
 export class DemoApplicationOperations extends ApplicationOperations {
-  viewSource(position: ElementPosition): void {
+  override viewSource(position: ElementPosition): void {
     console.warn('viewSource() is not implemented because the demo app runs in an Iframe');
     throw new Error('Not implemented in demo app.');
   }
-  selectDomElement(position: ElementPosition): void {
+  override selectDomElement(position: ElementPosition): void {
     console.warn('selectDomElement() is not implemented because the demo app runs in an Iframe');
     throw new Error('Not implemented in demo app.');
   }
-  inspect(directivePosition: DirectivePosition, keyPath: string[]): void {
+  override inspect(directivePosition: DirectivePosition, keyPath: string[]): void {
     console.warn('inspect() is not implemented because the demo app runs in an Iframe');
     return;
+  }
+  override inspectSignal(position: SignalNodePosition): void {
+    console.warn('inspectSignal() is not implemented because the demo app runs in an Iframe');
+    return;
+  }
+  override viewSourceFromRouter(name: string, type: string): void {
+    console.warn(
+      'viewSourceFromRouter() is not implemented because the demo app runs in an Iframe',
+    );
+    throw new Error('Not implemented in demo app.');
   }
 }

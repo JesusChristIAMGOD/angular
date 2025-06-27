@@ -1,0 +1,61 @@
+load("//adev/shared-docs:defaults.bzl", "ng_project", "ts_project")
+load("//tools:defaults2.bzl", "ng_web_test_suite")
+
+package(default_visibility = ["//visibility:private"])
+
+ts_project(
+    name = "services",
+    srcs = [
+        "index.ts",
+    ],
+    visibility = ["//adev/shared-docs:__subpackages__"],
+    deps = [
+        ":lib_rjs",
+    ],
+)
+
+ng_project(
+    name = "lib",
+    srcs = glob(
+        [
+            "**/*.ts",
+        ],
+        exclude = [
+            "index.ts",
+            "**/*.spec.ts",
+        ],
+    ),
+    deps = [
+        "//:node_modules/algoliasearch",
+        "//:node_modules/rxjs",
+        "//adev/shared-docs/interfaces:interfaces_rjs",
+        "//adev/shared-docs/providers:providers_rjs",
+        "//adev/shared-docs/utils:utils_rjs",
+        "//packages/common:common_rjs",
+        "//packages/core:core_rjs",
+        "//packages/core/rxjs-interop:rxjs-interop_rjs",
+        "//packages/router:router_rjs",
+    ],
+)
+
+ts_project(
+    name = "test_lib",
+    testonly = True,
+    srcs = glob(
+        ["*.spec.ts"],
+    ),
+    deps = [
+        ":lib_rjs",
+        "//adev/shared-docs/interfaces:interfaces_rjs",
+        "//adev/shared-docs/providers:providers_rjs",
+        "//adev/shared-docs/testing:testing_rjs",
+        "//packages/common:common_rjs",
+        "//packages/core:core_rjs",
+        "//packages/core/testing:testing_rjs",
+    ],
+)
+
+ng_web_test_suite(
+    name = "test",
+    deps = [":test_lib_rjs"],
+)
