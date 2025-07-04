@@ -1,0 +1,53 @@
+load("@angular//tools/esm-interop:index.bzl", "nodejs_binary")
+load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
+load("//adev/shared-docs:defaults.bzl", "ts_project")
+
+package(default_visibility = ["//adev/shared-docs/pipeline/api-gen:__subpackages__"])
+
+esbuild(
+    name = "bin",
+    entry_point = ":index.mts",
+    external = [
+        "@angular/compiler-cli",
+    ],
+    format = "esm",
+    output = "bin.mjs",
+    platform = "node",
+    target = "es2022",
+    deps = [
+        ":generate_api_manifest_lib_rjs",
+        "//adev:node_modules/@angular/compiler-cli",
+    ],
+)
+
+ts_project(
+    name = "generate_api_manifest_lib",
+    srcs = glob(["**/*.mts"]),
+    deps = [
+        "//adev:node_modules/@angular/compiler-cli",
+        "//adev:node_modules/@bazel/runfiles",
+        "//adev:node_modules/@types/node",
+    ],
+)
+
+# Action binary for the api_gen bazel rule.
+nodejs_binary(
+    name = "generate_api_manifest",
+    data = [
+        ":bin",
+        "@angular//packages/compiler-cli",
+    ],
+    entry_point = "bin.mjs",
+    # Note: Using the linker here as we need it for ESM. The linker is not
+    # super reliably when running concurrently on Windows- but we have existing
+    # actions using the linker. An alternative would be to:
+    #   - bundle the Angular compiler into a CommonJS bundle
+    #   - use the patched resolution- but also patch the ESM imports (similar to how FW does it).
+    visibility = ["//visibility:public"],
+)
+
+# Expose the sources in the dev-infra NPM package.
+filegroup(
+    name = "files",
+    srcs = glob(["**/*"]),
+)

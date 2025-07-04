@@ -3,14 +3,13 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
-import {XhrFactory} from '@angular/common';
-import {HttpHeaders} from '@angular/common/http/src/headers';
+import {XhrFactory} from '../../index';
+import {HttpHeaders} from '../src/headers';
 
 export class MockXhrFactory implements XhrFactory {
-  // TODO(issue/24571): remove '!'.
   mock!: MockXMLHttpRequest;
 
   build(): XMLHttpRequest {
@@ -33,9 +32,7 @@ export class MockXMLHttpRequestUpload {
 export class MockXMLHttpRequest {
   // Set by method calls.
   body: any;
-  // TODO(issue/24571): remove '!'.
   method!: string;
-  // TODO(issue/24571): remove '!'.
   url!: string;
   mockHeaders: {[key: string]: string} = {};
   mockAborted: boolean = false;
@@ -43,22 +40,23 @@ export class MockXMLHttpRequest {
   // Directly settable interface.
   withCredentials: boolean = false;
   responseType: string = 'text';
+  timeout: number | undefined = undefined;
 
   // Mocked response interface.
-  response: any|undefined = undefined;
-  responseText: string|undefined = undefined;
-  responseURL: string|null = null;
+  response: any | undefined = undefined;
+  responseText: string | undefined = undefined;
+  responseURL: string | null = null;
   status: number = 0;
   statusText: string = '';
   mockResponseHeaders: string = '';
 
   listeners: {
-    error?: (event: ProgressEvent) => void,
-    timeout?: (event: ProgressEvent) => void,
-    abort?: () => void,
-    load?: () => void,
-    progress?: (event: ProgressEvent) => void,
-    uploadProgress?: (event: ProgressEvent) => void,
+    error?: (event: ProgressEvent) => void;
+    timeout?: (event: ProgressEvent) => void;
+    abort?: () => void;
+    load?: () => void;
+    progress?: (event: ProgressEvent) => void;
+    uploadProgress?: (event: ProgressEvent) => void;
   } = {};
 
   upload = new MockXMLHttpRequestUpload(this);
@@ -73,12 +71,15 @@ export class MockXMLHttpRequest {
   }
 
   addEventListener(
-      event: 'error'|'timeout'|'load'|'progress'|'uploadProgress'|'abort',
-      handler: Function): void {
+    event: 'error' | 'timeout' | 'load' | 'progress' | 'uploadProgress' | 'abort',
+    handler: Function,
+  ): void {
     this.listeners[event] = handler as any;
   }
 
-  removeEventListener(event: 'error'|'timeout'|'load'|'progress'|'uploadProgress'|'abort'): void {
+  removeEventListener(
+    event: 'error' | 'timeout' | 'load' | 'progress' | 'uploadProgress' | 'abort',
+  ): void {
     delete this.listeners[event];
   }
 
@@ -90,7 +91,7 @@ export class MockXMLHttpRequest {
     return this.mockResponseHeaders;
   }
 
-  getResponseHeader(header: string): string|null {
+  getResponseHeader(header: string): string | null {
     return new HttpHeaders(this.mockResponseHeaders).get(header);
   }
 

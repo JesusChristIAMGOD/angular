@@ -1,5 +1,5 @@
-load("//devtools/tools:ng_module.bzl", "ng_module")
-load("@io_bazel_rules_sass//:defs.bzl", "sass_binary")
+load("//devtools/tools:ng_project.bzl", "ng_project")
+load("//tools:defaults2.bzl", "sass_binary")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -8,12 +8,11 @@ sass_binary(
     src = "split.component.scss",
 )
 
-ng_module(
+ng_project(
     name = "split",
     srcs = [
         "interface.ts",
         "split.component.ts",
-        "split.module.ts",
         "splitArea.directive.ts",
         "utils.ts",
     ],
@@ -21,8 +20,8 @@ ng_module(
         ":split_styles",
     ],
     deps = [
-        "//packages/common",
-        "//packages/core",
-        "@npm//rxjs",
+        "//:node_modules/@angular/common",
+        "//:node_modules/@angular/core",
+        "//:node_modules/rxjs",
     ],
 )

@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 require('cypress-iframe');
@@ -23,11 +23,11 @@ describe('Testing the Todo app Demo', () => {
   });
 
   it('should contain the "Components" tab', () => {
-    cy.contains('.mat-tab-links', 'Components');
+    cy.contains('nav', 'Components');
   });
 
   it('should contain the "Profiler" tab', () => {
-    cy.contains('.mat-tab-links', 'Profiler');
+    cy.contains('nav', 'Profiler');
   });
 
   it('should contain "app-root" and "app-todo-demo" in the component tree', () => {

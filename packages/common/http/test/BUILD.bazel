@@ -1,13 +1,6 @@
-load("//tools:defaults.bzl", "jasmine_node_test", "karma_web_test_suite", "ts_library")
-load("//tools/circular_dependency_test:index.bzl", "circular_dependency_test")
+load("//tools:defaults2.bzl", "angular_jasmine_test", "ng_web_test_suite", "ts_project")
 
-circular_dependency_test(
-    name = "circular_deps_test",
-    entry_point = "angular/packages/common/http/index.mjs",
-    deps = ["//packages/common/http"],
-)
-
-ts_library(
+ts_project(
     name = "test_lib",
     testonly = True,
     srcs = glob(
@@ -16,38 +9,29 @@ ts_library(
     # Visible to //:saucelabs_unit_tests_poc target
     visibility = ["//:__pkg__"],
     deps = [
-        "//packages/common",
-        "//packages/common/http",
-        "//packages/common/http/testing",
-        "//packages/core",
-        "//packages/core/testing",
-        "//packages/private/testing",
-        "@npm//rxjs",
+        "//:node_modules/rxjs",
+        "//packages:types_rjs",
+        "//packages/common:common_rjs",
+        "//packages/common/http:http_rjs",
+        "//packages/common/http/testing:testing_rjs",
+        "//packages/core:core_rjs",
+        "//packages/core/testing:testing_rjs",
+        "//packages/private/testing:testing_rjs",
     ],
 )
 
-jasmine_node_test(
+angular_jasmine_test(
     name = "test",
-    bootstrap = ["//tools/testing:node"],
-    tags = [
-        # Remote execution doesn't work with Node.js 18 right now.
-        # See https://github.com/angular/dev-infra/issues/1017
-        "no-remote-exec",
+    data = [
+        ":test_lib_rjs",
     ],
-    # TODO remove once the Node 18 is the default toolchain.
-    toolchain = select({
-        "@bazel_tools//src/conditions:linux_x86_64": "@node18_linux_amd64//:node_toolchain",
-        "@bazel_tools//src/conditions:darwin": "@node18_darwin_amd64//:node_toolchain",
-        "@bazel_tools//src/conditions:windows": "@node18_windows_amd64//:node_toolchain",
-    }),
-    deps = [
-        ":test_lib",
-    ],
+    flaky = True,  # TODO: figure out why one of the transferCache tests is flaky
 )
 
-karma_web_test_suite(
+ng_web_test_suite(
     name = "test_web",
+    flaky = True,  # TODO: figure out why one of the transferCache tests is flaky
     deps = [
-        ":test_lib",
+        ":test_lib_rjs",
     ],
 )

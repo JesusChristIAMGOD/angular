@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {ApplicationRef, NgModuleRef} from '@angular/core';
@@ -20,8 +20,8 @@ export function init(moduleRef: NgModuleRef<StylingModule>) {
   const componentHostEl = componentRef.location.nativeElement;
   const select = document.querySelector('#scenario-select')! as HTMLSelectElement;
 
-  const empty = [];
-  const items = [];
+  const empty: number[] = [];
+  const items: number[] = [];
 
   function create(tplRefIdx: number) {
     component.tplRefIdx = tplRefIdx;
@@ -63,15 +63,29 @@ export function init(moduleRef: NgModuleRef<StylingModule>) {
   bindAction('#update', update);
   bindAction('#detect_changes', detectChanges);
   bindAction('#destroy', destroy);
-  bindAction('#profile_update', profile(() => {
-               for (let i = 0; i < 10; i++) {
-                 update();
-               }
-             }, () => {}, 'update and detect changes'));
-  bindAction('#profile_detect_changes', profile(() => {
-               for (let i = 0; i < 10; i++) {
-                 detectChanges();
-               }
-             }, () => {}, 'noop detect changes'));
+  bindAction(
+    '#profile_update',
+    profile(
+      () => {
+        for (let i = 0; i < 10; i++) {
+          update();
+        }
+      },
+      () => {},
+      'update and detect changes',
+    ),
+  );
+  bindAction(
+    '#profile_detect_changes',
+    profile(
+      () => {
+        for (let i = 0; i < 10; i++) {
+          detectChanges();
+        }
+      },
+      () => {},
+      'noop detect changes',
+    ),
+  );
   bindAction('#modify', modifyExternally);
 }

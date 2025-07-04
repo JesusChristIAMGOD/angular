@@ -1,20 +1,16 @@
 # Re-export of Bazel rules with devtools-wide defaults
 
-load("//tools:defaults.bzl", _karma_web_test_suite = "karma_web_test_suite")
+load("//tools:defaults2.bzl", _ng_web_test_suite = "ng_web_test_suite")
 
-def karma_web_test_suite(name, **kwargs):
-    # Set up default browsers if no explicit `browsers` have been specified.
-    if not hasattr(kwargs, "browsers"):
-        kwargs["tags"] = ["native"] + kwargs.get("tags", [])
-        kwargs["browsers"] = [
-            "@npm//@angular/build-tooling/bazel/browsers/chromium:chromium",
-
-            # todo(aleksanderbodurri): enable when firefox support is done
-            # "@npm//@angular/build-tooling/bazel/browsers/firefox:firefox",
-        ]
-
-    # Default test suite with all configured browsers.
-    _karma_web_test_suite(
-        name = name,
+def ng_web_test_suite(deps = [], **kwargs):
+    # Provide required modules for the imports in //tools/testing/browser_tests.init.mts
+    deps = deps + [
+        "//:node_modules/@angular/compiler",
+        "//:node_modules/@angular/core",
+        "//:node_modules/@angular/platform-browser",
+    ]
+    _ng_web_test_suite(
+        deps = deps,
+        tsconfig = "//devtools:tsconfig_test",
         **kwargs
     )

@@ -1,75 +1,88 @@
-load("//tools:defaults.bzl", "jasmine_node_test", "ts_library")
+load("//tools:defaults2.bzl", "ts_project")
 
 package(default_visibility = ["//visibility:public"])
 
-ts_library(
+ts_project(
     name = "zone_base_setup_lib",
     testonly = 1,
-    srcs = ["zone_base_setup.ts"],
+    srcs = ["zone_base_setup.mts"],
     deps = [
-        "//packages/zone.js/lib",
-        "@npm//reflect-metadata",
+        "//:node_modules/reflect-metadata",
+        "//:node_modules/zone.js",
     ],
 )
 
-ts_library(
+ts_project(
     name = "browser",
     testonly = 1,
-    srcs = ["browser_tests.init.ts"],
+    srcs = ["browser_tests.init.mts"],
+    enable_runtime_rnjs_interop = False,
     deps = [
-        ":zone_base_setup_lib",
-        "//packages/compiler",
-        "//packages/core/testing",
-        "//packages/platform-browser-dynamic/testing",
-        "//packages/platform-browser/animations",
-        "//packages/zone.js/lib",
+        ":zone_base_setup_lib_rjs",
+        "//packages/compiler:compiler_rjs",
+        "//packages/core/testing:testing_rjs",
+        "//packages/platform-browser/animations:animations_rjs",
+        "//packages/platform-browser/testing:testing_rjs",
     ],
 )
 
-ts_library(
+ts_project(
+    name = "browser_zoneless",
+    testonly = 1,
+    srcs = ["browser_zoneless_tests.init.mts"],
+    enable_runtime_rnjs_interop = False,
+    deps = [
+        "//:node_modules/reflect-metadata",
+        "//packages/compiler:compiler_rjs",
+        "//packages/core:core_rjs",
+        "//packages/core/testing:testing_rjs",
+        "//packages/platform-browser/animations:animations_rjs",
+        "//packages/platform-browser/testing:testing_rjs",
+    ],
+)
+
+ts_project(
+    name = "node_zoneless",
+    testonly = 1,
+    srcs = ["node_zoneless_tests.init.mts"],
+    enable_runtime_rnjs_interop = False,
+    interop_deps = [
+        "//packages/platform-server:bundled_domino_lib",
+    ],
+    deps = [
+        "//:node_modules/reflect-metadata",
+        "//packages/compiler:compiler_rjs",
+        "//packages/core:core_rjs",
+        "//packages/core/testing:testing_rjs",
+        "//packages/platform-server:platform-server_rjs",
+        "//packages/platform-server/testing:testing_rjs",
+    ],
+)
+
+ts_project(
     name = "node",
     testonly = 1,
-    srcs = ["node_tests.init.ts"],
-    deps = [
-        ":zone_base_setup_lib",
-        "//packages/compiler",
-        "//packages/core/testing",
-        "//packages/platform-server",
+    srcs = ["node_tests.init.mts"],
+    enable_runtime_rnjs_interop = False,
+    interop_deps = [
         "//packages/platform-server:bundled_domino_lib",
-        "//packages/platform-server/testing",
-        "//packages/zone.js/lib",
+    ],
+    deps = [
+        ":zone_base_setup_lib_rjs",
+        "//:node_modules/reflect-metadata",
+        "//:node_modules/zone.js",
+        "//packages/compiler:compiler_rjs",
+        "//packages/core/testing:testing_rjs",
+        "//packages/platform-server:platform-server_rjs",
+        "//packages/platform-server/testing:testing_rjs",
     ],
 )
 
-ts_library(
+ts_project(
     name = "node_no_angular",
     testonly = 1,
-    srcs = ["node_no_angular_tests.init.ts"],
-    deps = [
+    srcs = ["node_no_angular_tests.init.mts"],
+    interop_deps = [
         "//packages:types",
     ],
-)
-
-# A test to verify that jasmine_node_test targets fail as expected.
-# This is to catch any future regressions to jasmine_node_test where
-# tests pass silently without executing.
-# See https://github.com/bazelbuild/rules_nodejs/pull/1540 for an example
-# of a potential regression.
-jasmine_node_test(
-    name = "fail_test",
-    srcs = ["fail.spec.js"],
-    expected_exit_code = 55,
-)
-
-# A test to verify that jasmine_node_test targets fail as expected
-# when there is a bootstrap script set.
-# This is to catch any future regressions to jasmine_node_test where
-# tests pass silently without executing.
-# See https://github.com/bazelbuild/rules_nodejs/pull/1540 for an example
-# of a potential regression.
-jasmine_node_test(
-    name = "fail_bootstrap_test",
-    srcs = ["fail.spec.js"],
-    bootstrap = ["//tools/testing:node"],
-    expected_exit_code = 55,
 )
