@@ -3,24 +3,23 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {parseRoutes} from './router-tree';
 
 describe('parseRoutes', () => {
   it('should work without any routes', () => {
-    const routes = [];
+    const routes: any[] = [];
     const parsedRoutes = parseRoutes(routes as any);
     expect(parsedRoutes).toEqual({
-      handler: 'no-name',
-      name: 'no-name',
+      component: 'no-name',
       path: '/',
       children: [],
+      data: [],
       isAux: false,
-      specificity: null,
-      data: null,
-      hash: null,
+      isLazy: false,
+      isActive: false,
     });
   });
 
@@ -33,14 +32,13 @@ describe('parseRoutes', () => {
     };
     const parsedRoutes = parseRoutes(nestedRouter as any);
     expect(parsedRoutes).toEqual({
-      handler: 'homeComponent',
-      name: 'homeComponent',
-      path: '/',
-      children: [],
-      isAux: false,
-      specificity: null,
-      data: null,
-      hash: null,
+      'component': 'homeComponent',
+      'path': '/',
+      'data': [],
+      'children': [],
+      'isAux': false,
+      'isLazy': false,
+      'isActive': false,
     });
   });
 
@@ -96,77 +94,91 @@ describe('parseRoutes', () => {
     };
     const parsedRoutes = parseRoutes(nestedRouter as any);
     expect(parsedRoutes).toEqual({
-      handler: 'homeComponent',
-      name: 'homeComponent',
-      path: '/',
-      children: [
+      'component': 'homeComponent',
+      'path': '/',
+      'children': [
         {
-          handler: 'component-one',
-          data: [],
-          hash: null,
-          specificity: null,
-          name: 'component-one',
-          path: '/(outlet:component-one)',
-          isAux: true,
-          children: [],
+          'component': 'component-one',
+          'canActivateGuards': [],
+          'canActivateChildGuards': [],
+          'canMatchGuards': [],
+          'canDeactivateGuards': [],
+          'providers': [],
+          'path': '/(outlet:component-one)',
+          'title': '[Function]',
+          'pathMatch': undefined,
+          'data': [],
+          'isAux': true,
+          'isLazy': false,
+          'isActive': undefined,
         },
         {
-          handler: 'component-two',
-          data: [Object({key: 'name', value: 'component-two'})],
-          hash: null,
-          specificity: null,
-          name: 'component-two',
-          path: '/component-two',
-          isAux: false,
-          children: [
+          'component': 'component-two',
+          'canActivateGuards': [],
+          'canActivateChildGuards': [],
+          'canMatchGuards': [],
+          'canDeactivateGuards': [],
+          'providers': [],
+          'path': '/component-two',
+          'title': '[Function]',
+          'pathMatch': undefined,
+          'data': [{'key': 'name', 'value': 'component-two'}],
+          'isAux': false,
+          'isLazy': false,
+          'isActive': undefined,
+          'children': [
             {
-              handler: 'component-two-two',
-              data: [],
-              hash: null,
-              specificity: null,
-              name: 'component-two-two',
-              path: '/component-two/component-two-two',
-              isAux: false,
-              children: [
-                {
-                  handler: 'component-two-two-two',
-                  data: [],
-                  hash: null,
-                  specificity: null,
-                  name: 'component-two-two-two',
-                  path: '/component-two/component-two-two/component-two-two-two',
-                  isAux: false,
-                  children: [],
-                },
-              ],
+              'component': 'component-two-two',
+              'canActivateGuards': [],
+              'canActivateChildGuards': [],
+              'canMatchGuards': [],
+              'canDeactivateGuards': [],
+              'providers': [],
+              'path': '/component-two/component-two-two',
+              'title': '[Function]',
+              'pathMatch': undefined,
+              'data': [],
+              'isAux': false,
+              'isLazy': false,
+              'isActive': undefined,
             },
           ],
         },
         {
-          handler: 'lazy [Lazy]',
-          data: [],
-          hash: null,
-          specificity: null,
-          name: 'lazy [Lazy]',
-          path: '/lazy',
-          isAux: false,
-          children: [],
+          'component': 'lazy [Lazy]',
+          'canActivateGuards': [],
+          'canActivateChildGuards': [],
+          'canMatchGuards': [],
+          'canDeactivateGuards': [],
+          'providers': [],
+          'path': '/lazy',
+          'title': '[Function]',
+          'pathMatch': undefined,
+          'data': [],
+          'isAux': false,
+          'isLazy': true,
+          'isActive': undefined,
         },
         {
-          handler: 'redirect -> redirecting to -> "redirectTo"',
-          data: [],
-          hash: null,
-          specificity: null,
-          name: 'redirect -> redirecting to -> "redirectTo"',
-          path: '/redirect',
-          isAux: false,
-          children: [],
+          'component': 'redirect -> redirecting to -> "redirectTo"',
+          'canActivateGuards': [],
+          'canActivateChildGuards': [],
+          'canMatchGuards': [],
+          'canDeactivateGuards': [],
+          'providers': [],
+          'path': '/redirect',
+          'title': '[Function]',
+          'pathMatch': undefined,
+          'data': [],
+          'isAux': false,
+          'isLazy': false,
+          'isActive': undefined,
         },
       ],
-      isAux: false,
-      specificity: null,
-      data: null,
-      hash: null,
-    });
+      'isAux': false,
+      'isLazy': false,
+      'data': [],
+      'isActive': false,
+    } as any);
   });
 });

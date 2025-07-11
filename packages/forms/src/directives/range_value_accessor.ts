@@ -3,17 +3,21 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {Directive, forwardRef, Provider} from '@angular/core';
 
-import {BuiltInControlValueAccessor, ControlValueAccessor, NG_VALUE_ACCESSOR} from './control_value_accessor';
+import {
+  BuiltInControlValueAccessor,
+  ControlValueAccessor,
+  NG_VALUE_ACCESSOR,
+} from './control_value_accessor';
 
 const RANGE_VALUE_ACCESSOR: Provider = {
   provide: NG_VALUE_ACCESSOR,
   useExisting: forwardRef(() => RangeValueAccessor),
-  multi: true
+  multi: true,
 };
 
 /**
@@ -32,7 +36,7 @@ const RANGE_VALUE_ACCESSOR: Provider = {
  * const ageControl = new FormControl();
  * ```
  *
- * ```
+ * ```html
  * <input type="range" [formControl]="ageControl">
  * ```
  *
@@ -42,19 +46,22 @@ const RANGE_VALUE_ACCESSOR: Provider = {
  */
 @Directive({
   selector:
-      'input[type=range][formControlName],input[type=range][formControl],input[type=range][ngModel]',
+    'input[type=range][formControlName],input[type=range][formControl],input[type=range][ngModel]',
   host: {
-    '(change)': 'onChange($event.target.value)',
-    '(input)': 'onChange($event.target.value)',
-    '(blur)': 'onTouched()'
+    '(change)': 'onChange($any($event.target).value)',
+    '(input)': 'onChange($any($event.target).value)',
+    '(blur)': 'onTouched()',
   },
-  providers: [RANGE_VALUE_ACCESSOR]
+  providers: [RANGE_VALUE_ACCESSOR],
+  standalone: false,
 })
-export class RangeValueAccessor extends BuiltInControlValueAccessor implements
-    ControlValueAccessor {
+export class RangeValueAccessor
+  extends BuiltInControlValueAccessor
+  implements ControlValueAccessor
+{
   /**
    * Sets the "value" property on the input element.
-   * @nodoc
+   * @docs-private
    */
   writeValue(value: any): void {
     this.setProperty('value', parseFloat(value));
@@ -62,9 +69,9 @@ export class RangeValueAccessor extends BuiltInControlValueAccessor implements
 
   /**
    * Registers a function called when the control value changes.
-   * @nodoc
+   * @docs-private
    */
-  override registerOnChange(fn: (_: number|null) => void): void {
+  override registerOnChange(fn: (_: number | null) => void): void {
     this.onChange = (value) => {
       fn(value == '' ? null : parseFloat(value));
     };

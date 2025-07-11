@@ -1,4 +1,6 @@
-load("//tools:defaults.bzl", "esbuild", "http_server", "ng_module", "protractor_web_test_suite", "ts_library")
+load("@devinfra//bazel/esbuild:index.bzl", "esbuild")
+load("//tools:defaults.bzl", "http_server", "protractor_web_test_suite")
+load("//tools:defaults2.bzl", "ng_project", "ts_project")
 
 """
   Macro that can be used to create the Bazel targets for an "upgrade" example. Since the
@@ -8,33 +10,37 @@ load("//tools:defaults.bzl", "esbuild", "http_server", "ng_module", "protractor_
 """
 
 def create_upgrade_example_targets(name, srcs, e2e_srcs, entry_point, assets = []):
-    ng_module(
+    ng_project(
         name = "%s_sources" % name,
         srcs = srcs,
-        deps = [
-            "@npm//@types/angular",
-            "@npm//@types/jasmine",
-            "//packages/core",
+        interop_deps = [
             "//packages/platform-browser",
-            "//packages/platform-browser-dynamic",
-            "//packages/upgrade/static",
-            "//packages/core/testing",
-            "//packages/upgrade/static/testing",
         ],
-        tsconfig = "//packages/examples/upgrade:tsconfig-build.json",
+        deps = [
+            "//:node_modules/@types/angular",
+            "//:node_modules/@types/jasmine",
+            "//:node_modules/tslib",
+            "//packages/core:core_rjs",
+            "//packages/core/testing:testing_rjs",
+            "//packages/upgrade/static:static_rjs",
+            "//packages/upgrade/static/testing:testing_rjs",
+        ],
+        tsconfig = "//packages/examples/upgrade:tsconfig_build",
     )
 
-    ts_library(
+    ts_project(
         name = "%s_e2e_lib" % name,
         srcs = e2e_srcs,
         testonly = True,
-        deps = [
-            "@npm//@types/jasminewd2",
-            "@npm//protractor",
-            "//packages/examples/test-utils",
+        interop_deps = [
             "//packages/private/testing",
         ],
-        tsconfig = "//packages/examples:tsconfig-e2e.json",
+        deps = [
+            "//:node_modules/@types/jasminewd2",
+            "//:node_modules/protractor",
+            "//packages/examples/test-utils:test-utils_rjs",
+        ],
+        tsconfig = "//packages/examples/upgrade:tsconfig_e2e",
     )
 
     esbuild(
@@ -48,7 +54,7 @@ def create_upgrade_example_targets(name, srcs, e2e_srcs, entry_point, assets = [
         additional_root_paths = ["angular/packages/examples/upgrade"],
         srcs = [
             "//packages/examples/upgrade:index.html",
-            "//packages/zone.js/bundles:zone.umd.js",
+            "@npm//:node_modules/zone.js/bundles/zone.umd.js",
             "@npm//:node_modules/angular-1.8/angular.js",
             "@npm//:node_modules/reflect-metadata/Reflect.js",
         ] + assets,

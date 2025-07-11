@@ -1,30 +1,30 @@
-load("//tools:defaults.bzl", "jasmine_node_test", "karma_web_test_suite", "ts_library")
+load("//tools:defaults2.bzl", "jasmine_test", "ng_web_test_suite", "ts_project")
 
 package(default_visibility = ["//visibility:private"])
 
-ts_library(
+ts_project(
     name = "signals_lib",
     testonly = True,
     srcs = glob(
         ["**/*.ts"],
     ),
     deps = [
-        "//packages/core/src/signals",
-        "//packages/core/src/util",
+        "//packages/core:core_rjs",
+        "//packages/core/primitives/signals:signals_rjs",
+        "//packages/core/src/util:util_rjs",
     ],
 )
 
-jasmine_node_test(
+jasmine_test(
     name = "signals",
-    bootstrap = ["//tools/testing:node_no_angular"],
-    deps = [
-        ":signals_lib",
+    data = [
+        ":signals_lib_rjs",
     ],
 )
 
-karma_web_test_suite(
+ng_web_test_suite(
     name = "signals_web",
     deps = [
-        ":signals_lib",
+        ":signals_lib_rjs",
     ],
 )

@@ -3,17 +3,15 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {Type} from '../interface/type';
 import {getClosureSafeProperty} from '../util/property';
 import {stringify} from '../util/stringify';
 
-
-
 /**
- * An interface that a function passed into {@link forwardRef} has to implement.
+ * An interface that a function passed into `forwardRef` has to implement.
  *
  * @usageNotes
  * ### Example
@@ -41,26 +39,28 @@ const __forward_ref__ = getClosureSafeProperty({__forward_ref__: getClosureSafeP
  * {@example core/di/ts/forward_ref/forward_ref_spec.ts region='forward_ref'}
  *
  * ### Circular standalone reference import example
- * ```ts
+ * ```angular-ts
  * @Component({
- *   standalone: true,
  *   imports: [ChildComponent],
  *   selector: 'app-parent',
- *   template: `<app-child [hideParent]="hideParent"></app-child>`,
+ *   template: `<app-child [hideParent]="hideParent()"></app-child>`,
  * })
  * export class ParentComponent {
- *   @Input() hideParent: boolean;
+ *    hideParent = input.required<boolean>();
  * }
  *
  *
  * @Component({
- *   standalone: true,
- *   imports: [CommonModule, forwardRef(() => ParentComponent)],
+ *   imports: [forwardRef(() => ParentComponent)],
  *   selector: 'app-child',
- *   template: `<app-parent *ngIf="!hideParent"></app-parent>`,
+ *   template: `
+ *    @if(!hideParent() {
+ *       <app-parent/>
+ *    }
+ *  `,
  * })
  * export class ChildComponent {
- *   @Input() hideParent: boolean;
+ *    hideParent = input.required<boolean>();
  * }
  * ```
  *
@@ -68,10 +68,10 @@ const __forward_ref__ = getClosureSafeProperty({__forward_ref__: getClosureSafeP
  */
 export function forwardRef(forwardRefFn: ForwardRefFn): Type<any> {
   (<any>forwardRefFn).__forward_ref__ = forwardRef;
-  (<any>forwardRefFn).toString = function() {
+  (<any>forwardRefFn).toString = function () {
     return stringify(this());
   };
-  return (<Type<any>><any>forwardRefFn);
+  return <Type<any>>(<any>forwardRefFn);
 }
 
 /**
@@ -92,7 +92,10 @@ export function resolveForwardRef<T>(type: T): T {
 }
 
 /** Checks whether a function is wrapped by a `forwardRef`. */
-export function isForwardRef(fn: any): fn is() => any {
-  return typeof fn === 'function' && fn.hasOwnProperty(__forward_ref__) &&
-      fn.__forward_ref__ === forwardRef;
+export function isForwardRef(fn: any): fn is () => any {
+  return (
+    typeof fn === 'function' &&
+    fn.hasOwnProperty(__forward_ref__) &&
+    fn.__forward_ref__ === forwardRef
+  );
 }

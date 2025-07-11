@@ -3,15 +3,23 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 /// <reference types="node" />
 import fs from 'fs';
-import module from 'module';
+import {createRequire} from 'module';
 import * as p from 'path';
-import {fileURLToPath} from 'url';
+import * as url from 'url';
 
-import {AbsoluteFsPath, FileStats, FileSystem, PathManipulation, PathSegment, PathString, ReadonlyFileSystem} from './types';
+import {
+  AbsoluteFsPath,
+  FileStats,
+  FileSystem,
+  PathManipulation,
+  PathSegment,
+  PathString,
+  ReadonlyFileSystem,
+} from './types';
 
 /**
  * A wrapper around the Node.js file-system that supports path manipulation.
@@ -39,13 +47,13 @@ export class NodeJSPathManipulation implements PathManipulation {
   isRooted(path: string): boolean {
     return p.isAbsolute(path);
   }
-  relative<T extends PathString>(from: T, to: T): PathSegment|AbsoluteFsPath {
+  relative<T extends PathString>(from: T, to: T): PathSegment | AbsoluteFsPath {
     return this.normalize(p.relative(from, to)) as PathSegment | AbsoluteFsPath;
   }
   basename(filePath: string, extension?: string): PathSegment {
     return p.basename(filePath, extension) as PathSegment;
   }
-  extname(path: AbsoluteFsPath|PathSegment): string {
+  extname(path: AbsoluteFsPath | PathSegment): string {
     return p.extname(path);
   }
   normalize<T extends string>(path: T): T {
@@ -58,18 +66,24 @@ export class NodeJSPathManipulation implements PathManipulation {
 // CommonJS/ESM interop for determining the current file name and containing dir.
 const isCommonJS = typeof __filename !== 'undefined';
 const currentFileUrl = isCommonJS ? null : import.meta.url;
-const currentFileName = isCommonJS ? __filename : fileURLToPath(currentFileUrl!);
+// Note, when this code loads in the browser, `url` may be an empty `{}` due to the Closure shims.
+const currentFileName: string | null = isCommonJS
+  ? __filename
+  : (url.fileURLToPath?.(currentFileUrl!) ?? null);
 
 /**
  * A wrapper around the Node.js file-system that supports readonly operations and path manipulation.
  */
 export class NodeJSReadonlyFileSystem extends NodeJSPathManipulation implements ReadonlyFileSystem {
-  private _caseSensitive: boolean|undefined = undefined;
+  private _caseSensitive: boolean | undefined = undefined;
   isCaseSensitive(): boolean {
     if (this._caseSensitive === undefined) {
       // Note the use of the real file-system is intentional:
       // `this.exists()` relies upon `isCaseSensitive()` so that would cause an infinite recursion.
-      this._caseSensitive = !fs.existsSync(this.normalize(toggleCase(currentFileName)));
+      this._caseSensitive =
+        currentFileName !== null
+          ? !fs.existsSync(this.normalize(toggleCase(currentFileName)))
+          : true;
     }
     return this._caseSensitive;
   }
@@ -96,7 +110,7 @@ export class NodeJSReadonlyFileSystem extends NodeJSPathManipulation implements 
   }
   getDefaultLibLocation(): AbsoluteFsPath {
     // G3-ESM-MARKER: G3 uses CommonJS, but externally everything in ESM.
-    const requireFn = isCommonJS ? require : module.createRequire(currentFileUrl!);
+    const requireFn = isCommonJS ? require : createRequire(currentFileUrl!);
     return this.resolve(requireFn.resolve('typescript'), '..');
   }
 }
@@ -105,7 +119,7 @@ export class NodeJSReadonlyFileSystem extends NodeJSPathManipulation implements 
  * A wrapper around the Node.js file-system (i.e. the `fs` package).
  */
 export class NodeJSFileSystem extends NodeJSReadonlyFileSystem implements FileSystem {
-  writeFile(path: AbsoluteFsPath, data: string|Uint8Array, exclusive: boolean = false): void {
+  writeFile(path: AbsoluteFsPath, data: string | Uint8Array, exclusive: boolean = false): void {
     fs.writeFileSync(path, data, exclusive ? {flag: 'wx'} : undefined);
   }
   removeFile(path: AbsoluteFsPath): void {
@@ -132,5 +146,7 @@ export class NodeJSFileSystem extends NodeJSReadonlyFileSystem implements FileSy
  * Toggle the case of each character in a string.
  */
 function toggleCase(str: string): string {
-  return str.replace(/\w/g, ch => ch.toUpperCase() === ch ? ch.toLowerCase() : ch.toUpperCase());
+  return str.replace(/\w/g, (ch) =>
+    ch.toUpperCase() === ch ? ch.toLowerCase() : ch.toUpperCase(),
+  );
 }

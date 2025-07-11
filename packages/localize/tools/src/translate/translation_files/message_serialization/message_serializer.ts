@@ -3,20 +3,27 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
-import {Element, Expansion, ExpansionCase, Node, Text, visitAll} from '@angular/compiler';
+import {
+  Element,
+  Expansion,
+  ExpansionCase,
+  Node,
+  ParseError,
+  Text,
+  visitAll,
+} from '@angular/compiler';
 
 import {BaseVisitor} from '../base_visitor';
-import {TranslationParseError} from '../translation_parsers/translation_parse_error';
 import {getAttribute, getAttrOrThrow} from '../translation_parsers/translation_utils';
 
 import {MessageRenderer} from './message_renderer';
 
 export interface MessageSerializerConfig {
   inlineElements: string[];
-  placeholder?: {elementName: string; nameAttribute: string; bodyAttribute?: string;};
-  placeholderContainer?: {elementName: string; startAttribute: string; endAttribute: string;};
+  placeholder?: {elementName: string; nameAttribute: string; bodyAttribute?: string};
+  placeholderContainer?: {elementName: string; startAttribute: string; endAttribute: string};
 }
 
 /**
@@ -25,7 +32,10 @@ export interface MessageSerializerConfig {
  * The type of the serialized message is controlled by the
  */
 export class MessageSerializer<T> extends BaseVisitor {
-  constructor(private renderer: MessageRenderer<T>, private config: MessageSerializerConfig) {
+  constructor(
+    private renderer: MessageRenderer<T>,
+    private config: MessageSerializerConfig,
+  ) {
     super();
   }
 
@@ -39,19 +49,21 @@ export class MessageSerializer<T> extends BaseVisitor {
   override visitElement(element: Element): void {
     if (this.config.placeholder && element.name === this.config.placeholder.elementName) {
       const name = getAttrOrThrow(element, this.config.placeholder.nameAttribute);
-      const body = this.config.placeholder.bodyAttribute &&
-          getAttribute(element, this.config.placeholder.bodyAttribute);
+      const body =
+        this.config.placeholder.bodyAttribute &&
+        getAttribute(element, this.config.placeholder.bodyAttribute);
       this.visitPlaceholder(name, body);
     } else if (
-        this.config.placeholderContainer &&
-        element.name === this.config.placeholderContainer.elementName) {
+      this.config.placeholderContainer &&
+      element.name === this.config.placeholderContainer.elementName
+    ) {
       const start = getAttrOrThrow(element, this.config.placeholderContainer.startAttribute);
       const end = getAttrOrThrow(element, this.config.placeholderContainer.endAttribute);
       this.visitPlaceholderContainer(start, element.children, end);
     } else if (this.config.inlineElements.indexOf(element.name) !== -1) {
       visitAll(this, element.children);
     } else {
-      throw new TranslationParseError(element.sourceSpan, `Invalid element found in message.`);
+      throw new ParseError(element.sourceSpan, `Invalid element found in message.`);
     }
   }
 
@@ -80,7 +92,7 @@ export class MessageSerializer<T> extends BaseVisitor {
     this.renderer.closeContainer();
   }
 
-  visitPlaceholder(name: string, body: string|undefined): void {
+  visitPlaceholder(name: string, body: string | undefined): void {
     this.renderer.placeholder(name, body);
   }
 
