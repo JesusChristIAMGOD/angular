@@ -17,7 +17,7 @@
     "ngserver": "./bin/ngserver"
   },
   "dependencies": {
-    "@angular/language-service": "21.0.0-next.6",
+    "@angular/language-service": "workspace:*",
     "typescript": "5.9.3"
   },
   "devDependencies": {
@@ -26,8 +26,5 @@
     "vscode-languageserver": "7.0.0",
     "vscode-languageserver-textdocument": "^1.0.12",
     "vscode-uri": "3.1.0"
-  },
-  "publishConfig": {
-    "registry": "https://wombat-dressing-room.appspot.com"
   }
 }
